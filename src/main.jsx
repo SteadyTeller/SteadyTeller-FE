@@ -1,314 +1,116 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import {
-  ArrowRight, Bell, BookOpen, CalendarDays, Check, ChevronDown, CircleHelp,
-  Clock3, Flame, LayoutDashboard, Menu, MoreHorizontal, Plus, Search,
-  Settings, Sparkles, Target, UserRound, X, Zap
-} from 'lucide-react'
+import { ArrowRight, Bell, BookOpen, CalendarDays, Check, Clock3, LayoutDashboard, LogOut, Menu, MoreHorizontal, Plus, Sparkles, Target, Trash2, X } from 'lucide-react'
+import { api } from './api'
 import './styles.css'
 import './pages.css'
 import './auth.css'
 import './connection.css'
-import { api } from './api'
+import './actual.css'
+import './dashboard.css'
+import './generation.css'
+import './goal-context.css'
+import './global-goal.css'
+import './goal-inline.css'
 
-const tasksSeed = [
-  { id: 1, title: '관계형 데이터베이스 기초', category: '데이터베이스', subject: '정규화', minutes: 45, importance: 5, status: 'IN_PROGRESS', source: 'AI_GENERATED' },
-  { id: 2, title: 'SQL JOIN 문법 정리하기', category: '데이터베이스', subject: 'SQL', minutes: 35, importance: 4, status: 'PENDING', source: 'AI_GENERATED' },
-  { id: 3, title: '인덱스와 쿼리 최적화', category: '데이터베이스', subject: '성능 최적화', minutes: 50, importance: 4, status: 'PENDING', source: 'AI_GENERATED' },
-  { id: 4, title: '트랜잭션과 동시성 제어', category: '데이터베이스', subject: '트랜잭션', minutes: 40, importance: 3, status: 'FINISHED', source: 'AI_GENERATED' },
-]
-
-const week = [
-  { day: '월', date: '08', label: '오늘', items: [{ title: '관계형 데이터베이스 기초', time: '09:00', minutes: 45, state: 'doing' }, { title: 'SQL JOIN 문법 정리하기', time: '20:00', minutes: 35, state: 'next' }] },
-  { day: '화', date: '09', items: [{ title: '복습 · 관계형 데이터베이스', time: '20:00', minutes: 25, state: 'review' }] },
-  { day: '수', date: '10', items: [{ title: '인덱스와 쿼리 최적화', time: '19:30', minutes: 50, state: 'next' }] },
-  { day: '목', date: '11', items: [] },
-  { day: '금', date: '12', items: [{ title: '트랜잭션과 동시성 제어', time: '20:00', minutes: 40, state: 'next' }] },
-  { day: '토', date: '13', items: [] },
-  { day: '일', date: '14', items: [] },
-]
-
-function PageIntro({ eyebrow, title, description, action, onAction }) {
-  return <div className="page-intro"><div><div className="eyebrow"><span className="eyebrow-dot" /> {eyebrow}</div><h1>{title}</h1><p>{description}</p></div>{action && <button className="primary-button" onClick={onAction}><Plus size={17} /> {action}</button>}</div>
-}
-
-function GoalPage({ onCreate, showToast, goal, onUpdate, onDelete }) {
-  const availability = ['월', '화', '수', '목', '금', '토', '일']
-  const activeGoal = goal ?? { title: '학습 목표가 없습니다.', currentLevel: '-', focusArea: '-', dailyStudyHours: 0, availableDays: [] }
-  return <>
-    <PageIntro eyebrow="MY GOALS" title="학습 목표" description="지금의 목표를 선명하게 바라보고, 꾸준한 계획으로 완성해보세요." action="새 목표 만들기" onAction={onCreate} />
-    <div className="goal-layout"><section className="goal-main-card"><div className="goal-main-top"><div><span className="card-kicker">ACTIVE GOAL · {activeGoal.id ?? '-'}</span><h2>{activeGoal.title}</h2><p>{activeGoal.focusArea}를 중심으로 핵심 과목을 완주해요.</p></div><span className="goal-status">진행 중</span></div><div className="goal-big-progress"><div><span>목표 진행률</span><strong>25%</strong></div><div className="progress-track light"><span style={{ width: '25%' }} /></div></div><div className="goal-stats"><div><strong>{activeGoal.targetDate ? `D-${Math.max(0, Math.ceil((new Date(activeGoal.targetDate) - new Date()) / 86400000))}` : '-'}</strong><span>남은 기간</span></div><div><strong>{activeGoal.dailyStudyHours}시간</strong><span>하루 학습</span></div><div><strong>{activeGoal.availableDays?.join(' · ') || '-'}</strong><span>학습 요일</span></div></div><div className="goal-action-row"><button className="outline-button" onClick={onUpdate}>목표 동기화 <ArrowRight size={14} /></button><button className="danger-button" onClick={onDelete}>목표 삭제</button></div></section><section className="goal-side-card"><div className="mini-heading"><span>LEARNING PROFILE</span><Settings size={16} /></div><h3>나의 학습 프로필</h3><div className="profile-row"><span>현재 수준</span><strong>{activeGoal.currentLevel}</strong></div><div className="profile-row"><span>집중 분야</span><strong>{activeGoal.focusArea}</strong></div><div className="profile-row"><span>시작일</span><strong>{activeGoal.startDate ?? '-'}</strong></div><button className="text-button purple" onClick={() => showToast('학습 프로필 편집 화면을 준비 중이에요.')}>프로필 수정하기 <ArrowRight size={15} /></button></section></div>
-    <section className="goal-settings-card"><div className="section-head compact"><div><h2>가용 시간</h2><p>AI가 일정을 배치할 때 참고하는 나의 학습 가능 시간이에요.</p></div><button className="outline-button" onClick={() => showToast('가용 시간 수정 화면을 준비 중이에요.')}>수정하기</button></div><div className="availability-row">{availability.map((day, i) => <div className={i === 1 || i === 3 || i === 5 ? 'availability active' : 'availability'} key={day}><span>{day}</span><strong>{i === 1 || i === 3 || i === 5 ? '20:00' : '—'}</strong>{i === 1 || i === 3 || i === 5 ? <small>~ 21:00</small> : <small>쉬는 날</small>}</div>)}</div></section>
-  </>
-}
-
-function SchedulePage({ showToast, week: propsWeek = week, onGenerateSchedule, onDeleteSchedule }) {
-  return <><PageIntro eyebrow="MY SCHEDULE" title="내 일정" description="나에게 맞춰 배치된 학습 계획을 한눈에 확인해보세요." action="일정 다시 만들기" onAction={onGenerateSchedule} /><section className="schedule-page-card"><div className="schedule-page-toolbar"><button className="month-button">‹</button><strong>내 학습 스케줄</strong><button className="month-button">›</button><div className="schedule-tabs"><button className="active">주간</button><button onClick={() => showToast('월간 보기로 전환했어요.')}>월간</button><button className="danger-button" onClick={onDeleteSchedule}>일정 삭제</button></div></div><div className="full-calendar-grid">{propsWeek.map((day, index) => <div className={index === 0 ? 'full-day today' : 'full-day'} key={day.date}><div className="full-date"><span>{day.day}</span><strong>{day.date}</strong>{index === 0 && <i>오늘</i>}</div>{day.items.length ? day.items.map((item, i) => <div className={`full-schedule-item ${item.state}`} key={i}><span>{item.time}</span><strong>{item.title}</strong><small><Clock3 size={12} /> {item.minutes}분 학습</small></div>) : <div className="free-space"><Plus size={16} /><span>비어 있음</span></div>}</div>)}</div></section><div className="schedule-bottom-grid"><section className="insight-card"><div className="mini-heading"><span>THIS WEEK</span><Flame size={17} /></div><h3>이번 주 3시간 15분</h3><p>지난주보다 <b>45분 더</b> 계획했어요.</p><div className="mini-bars">{[40, 58, 32, 74, 48, 22, 10].map((height, i) => <i key={i} style={{ height: `${height}%` }} className={i < 3 ? 'on' : ''} />)}</div></section><section className="insight-card next-card"><div><span className="card-kicker">NEXT UP</span><h3>다음 학습을 시작해볼까요?</h3><p><Clock3 size={13} /> 오늘 배정된 태스크를 확인해보세요.</p></div><div className="next-arrow"><ArrowRight size={18} /></div></section></div></>
-}
-
-function TaskPage({ tasks, toggleTask, statusLabel, showToast, onConfirm, onAdd, onDelete, onCreate }) {
-  return <><PageIntro eyebrow="LEARNING TASKS" title="학습 태스크" description="AI가 제안한 학습 태스크를 검토하고, 나만의 학습 목록을 완성해보세요." action="AI 태스크 다시 생성" onAction={onCreate} /><div className="task-summary-row"><div className="task-summary"><div className="summary-icon purple"><BookOpen size={18} /></div><div><strong>{tasks.length}</strong><span>전체 태스크</span></div></div><div className="task-summary"><div className="summary-icon orange"><Clock3 size={18} /></div><div><strong>{tasks.reduce((sum, task) => sum + (task.minutes ?? 0), 0)}분</strong><span>예상 학습 시간</span></div></div><div className="task-summary"><div className="summary-icon mint"><Check size={18} /></div><div><strong>{tasks.filter(task => task.status === 'FINISHED').length}</strong><span>완료한 태스크</span></div></div><div className="task-summary ai-summary"><Sparkles size={18} /><div><strong>AI 추천 태스크</strong><span>목표에 맞춰 자동으로 생성됨</span></div></div></div><section className="full-task-card"><div className="task-filter-row"><div><button className="filter active">전체 <b>{tasks.length}</b></button><button className="filter">예정</button><button className="filter">진행 중</button><button className="filter">완료</button></div><div className="task-filter-actions"><button className="outline-button" onClick={() => showToast('필터 옵션을 준비 중이에요.')}><ChevronDown size={14} /> 정렬: 중요도순</button><button className="primary-button" onClick={onConfirm}><Check size={15} /> 태스크 확정</button></div></div>{tasks.map(task => <div className="large-task-row" key={task.id}><button className={task.status === 'FINISHED' ? 'check-box checked' : 'check-box'} onClick={() => toggleTask(task.id)}>{task.status === 'FINISHED' && <Check size={14} />}</button><div className="large-task-content"><div><strong>{task.title}</strong><span>{task.subject} · {task.source === 'AI_GENERATED' ? '✦ AI가 제안한 태스크' : '직접 추가한 태스크'}</span></div><div className="large-task-meta"><span className="category-pill">{task.category}</span><span><Clock3 size={13} /> {task.minutes}분</span><span className="importance">{Array.from({ length: 5 }, (_, i) => <i className={i < task.importance ? 'filled' : ''} key={i}>★</i>)}</span><span className={`status ${task.status.toLowerCase()}`}>{statusLabel[task.status]}</span></div></div><button className="more-button" onClick={() => onDelete(task.id)}><MoreHorizontal size={19} /></button></div>)}<button className="add-task big-add" onClick={onAdd}><Plus size={16} /> 직접 태스크 추가하기</button></section></>
-}
-
-function WorkspacePage({ activeNav, ...props }) {
-  if (activeNav === '학습 목표') return <GoalPage {...props} />
-  if (activeNav === '내 일정') return <SchedulePage {...props} />
-  return <TaskPage {...props} />
-}
+const dayLabels = { MON: '월', TUE: '화', WED: '수', THU: '목', FRI: '금', SAT: '토', SUN: '일', MONDAY: '월', TUESDAY: '화', WEDNESDAY: '수', THURSDAY: '목', FRIDAY: '금', SATURDAY: '토', SUNDAY: '일' }
+const emptyGoal = { title: '', startDate: new Date().toISOString().slice(0, 10), targetDate: '', currentLevel: 'BEGINNER', dailyStudyHours: 1, availableDays: [], focusArea: '' }
 
 function AuthScreen({ onLogin }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const submit = async (event) => {
-    event.preventDefault()
-    setError('')
-    setNotice('')
-    setLoading(true)
+  const signup = mode === 'signup'
+  async function submit(event) {
+    event.preventDefault(); setMessage(''); setLoading(true)
     try {
-      if (mode === 'signup') {
-        await api.signup(email, password, nickname)
-        setMode('login')
-        setPassword('')
-        setNotice('회원가입이 완료되었습니다. 로그인해주세요.')
-      } else {
-        const result = await api.login(email, password)
-        localStorage.setItem('steadyTeller.accessToken', result.accessToken)
-        onLogin(result.member)
-      }
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
+      if (signup) { await api.signup(email, password, nickname); setMode('login'); setPassword(''); setMessage('회원가입이 완료됐어요. 로그인해주세요.') }
+      else { const result = await api.login(email, password); localStorage.setItem('steadyTeller.accessToken', result.accessToken); onLogin() }
+    } catch (error) { setMessage(error.message) } finally { setLoading(false) }
   }
-
-  const isSignup = mode === 'signup'
-  return <div className="auth-screen"><div className="auth-glow" /><div className="auth-card"><div className="brand auth-brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span><span>Steady<span className="brand-accent">Teller</span></span></div><span className="card-kicker auth-kicker">YOUR STEADY LEARNING COACH</span><h1>{isSignup ? <>나만의 학습을<br /><em>시작해볼까요?</em></> : <>다시, 꾸준히<br /><em>시작해볼까요?</em></>}</h1><p>{isSignup ? <>계정을 만들고 나에게 맞는<br />학습 목표와 일정을 준비해보세요.</> : <>로그인하면 나만의 학습 목표와<br />AI가 만든 일정을 이어갈 수 있어요.</>}</p><form onSubmit={submit}>{isSignup && <label>닉네임<input required value={nickname} onChange={e => setNickname(e.target.value)} placeholder="하늘" /></label>}<label>이메일<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></label><label>비밀번호<input type="password" required minLength={8} value={password} onChange={e => setPassword(e.target.value)} placeholder="8자 이상 입력해주세요" /></label>{error && <div className="auth-error">{error}</div>}{notice && <div className="auth-notice">{notice}</div>}<button className="primary-button full" disabled={loading}>{loading ? (isSignup ? '가입 중...' : '로그인 중...') : (isSignup ? '회원가입하기' : '로그인하기')} <ArrowRight size={16} /></button></form><button className="auth-switch" onClick={() => { setMode(isSignup ? 'login' : 'signup'); setError(''); setNotice('') }}>{isSignup ? '이미 계정이 있나요? 로그인' : '처음 오셨나요? 회원가입'}</button></div><div className="auth-quote"><Sparkles size={17} /> “작은 계획이 쌓여, 결국 나만의 실력이 됩니다.”</div></div>
+  return <div className="auth-screen"><div className="auth-glow" /><div className="auth-card"><div className="brand auth-brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span>Steady<span className="brand-accent">Teller</span></div><span className="card-kicker auth-kicker">YOUR STEADY LEARNING COACH</span><h1>{signup ? <>나만의 학습을<br /><em>시작해볼까요?</em></> : <>다시, 꾸준히<br /><em>시작해볼까요?</em></>}</h1><p>{signup ? '계정을 만들고 나만의 학습 계획을 시작해보세요.' : '로그인하면 저장된 목표와 일정을 이어갈 수 있어요.'}</p><form onSubmit={submit}>{signup && <label>닉네임<input required value={nickname} onChange={e => setNickname(e.target.value)} /></label>}<label>이메일<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></label><label>비밀번호<input type="password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} placeholder="8자 이상 입력해주세요" /></label>{message && <div className={message.includes('완료') ? 'auth-notice' : 'auth-error'}>{message}</div>}<button className="primary-button full" disabled={loading}>{loading ? '처리 중...' : signup ? '회원가입하기' : '로그인하기'} <ArrowRight size={16} /></button></form><button className="auth-switch" onClick={() => { setMode(signup ? 'login' : 'signup'); setMessage('') }}>{signup ? '이미 계정이 있나요? 로그인' : '처음 오셨나요? 회원가입'}</button></div></div>
 }
 
-function mapCandidate(candidate) {
-  return { id: candidate.candidateId, title: candidate.title, category: candidate.category, subject: candidate.subject, minutes: candidate.allocatedMinutes, importance: candidate.importance ?? candidate.difficulty ?? 3, difficulty: candidate.difficulty, status: 'PENDING', source: candidate.source, isModified: candidate.isModified }
-}
+function EmptyState({ title, description, action, onAction }) { return <section className="empty-state"><div className="empty-icon"><Target size={28} /></div><h2>{title}</h2><p>{description}</p>{action && <button className="primary-button" onClick={onAction}><Plus size={16} /> {action}</button>}</section> }
 
-function makeWeekFromSchedule(schedule) {
-  if (!schedule?.dailySchedules?.length) return week
-  const dayNames = { MONDAY: '월', TUESDAY: '화', WEDNESDAY: '수', THURSDAY: '목', FRIDAY: '금', SATURDAY: '토', SUNDAY: '일' }
-  const byDate = new Map(schedule.dailySchedules.map(day => [String(day.date), day]))
-  const start = new Date(`${schedule.scheduleStartDate}T00:00:00`)
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(start)
-    date.setDate(start.getDate() + index)
-    const iso = date.toISOString().slice(0, 10)
-    const day = byDate.get(iso)
-    return { day: dayNames[day?.dayOfWeek] ?? ['일', '월', '화', '수', '목', '금', '토'][date.getDay()], date: String(date.getDate()).padStart(2, '0'), items: (day?.items ?? []).map(item => ({ title: item.title, time: '', minutes: item.allocatedMinutes, state: item.status === 'FINISHED' ? 'review' : 'next', scheduleItemId: item.scheduleItemId })) }
-  })
-}
-
-function SettingsPanel({ member, onClose, onLogout, showToast }) {
-  const [nickname, setNickname] = useState(member?.nickname ?? '')
-  const [profile, setProfile] = useState({ defaultLevel: 'BEGINNER', preferredStartTime: '20:00', notificationEnabled: true })
-  const [availability, setAvailability] = useState([])
+function GoalModal({ initial = emptyGoal, onClose, onSave }) {
+  const [form, setForm] = useState({ ...emptyGoal, ...initial })
   const [saving, setSaving] = useState(false)
-  useEffect(() => {
-    Promise.all([api.learningProfile(), api.availabilities()]).then(([loadedProfile, loadedAvailability]) => { if (loadedProfile) setProfile({ defaultLevel: loadedProfile.defaultLevel, preferredStartTime: loadedProfile.preferredStartTime?.slice(0, 5) ?? '', notificationEnabled: loadedProfile.notificationEnabled }); setAvailability(loadedAvailability ?? []) }).catch(error => showToast(error.message))
-  }, [showToast])
-  const save = async () => {
-    setSaving(true)
-    try { await api.updateMember({ nickname }); await api.updateLearningProfile(profile); showToast('계정 설정이 저장되었어요.'); onClose() } catch (error) { showToast(error.message) } finally { setSaving(false) }
-  }
-  return <div className="modal-backdrop" onClick={onClose}><div className="settings-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={18} /></button><span className="card-kicker">ACCOUNT SETTINGS</span><h2>계정 및 학습 설정</h2><label>닉네임<input value={nickname} onChange={event => setNickname(event.target.value)} /></label><div className="settings-grid"><label>기본 학습 수준<select value={profile.defaultLevel} onChange={event => setProfile({ ...profile, defaultLevel: event.target.value })}><option value="BEGINNER">초급</option><option value="INTERMEDIATE">중급</option><option value="ADVANCED">고급</option></select></label><label>선호 시작 시간<input type="time" value={profile.preferredStartTime} onChange={event => setProfile({ ...profile, preferredStartTime: event.target.value })} /></label></div><label className="toggle-label"><input type="checkbox" checked={profile.notificationEnabled} onChange={event => setProfile({ ...profile, notificationEnabled: event.target.checked })} /> 학습 알림 받기</label><div className="settings-availability"><div className="mini-heading"><span>REGISTERED AVAILABILITIES</span><span>{availability.length}개</span></div>{availability.length ? availability.map(item => <div className="availability-line" key={item.id}><span>{item.dayOfWeek}</span><strong>{item.startTime?.slice(0, 5)}–{item.endTime?.slice(0, 5)}</strong><button onClick={async () => { try { await api.deleteAvailability(item.id); setAvailability(current => current.filter(row => row.id !== item.id)); showToast('가용 시간이 삭제되었어요.') } catch (error) { showToast(error.message) } }}><X size={14} /></button></div>) : <p className="empty-settings">등록된 가용 시간이 없습니다.</p>}</div><div className="settings-actions"><button className="danger-button" onClick={onLogout}>회원 탈퇴</button><button className="primary-button" onClick={save} disabled={saving}>{saving ? '저장 중...' : '변경 저장'}</button></div></div></div>
+  const update = (key, value) => setForm(current => ({ ...current, [key]: value }))
+  const toggleDay = day => update('availableDays', form.availableDays.includes(day) ? form.availableDays.filter(item => item !== day) : [...form.availableDays, day])
+  async function submit(event) { event.preventDefault(); setSaving(true); try { await onSave(form); onClose() } finally { setSaving(false) } }
+  return <div className="modal-backdrop" onClick={onClose}><form className="modal goal-modal" onClick={e => e.stopPropagation()} onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={18} /></button><div className="modal-symbol"><Target size={24} /></div><span className="card-kicker">LEARNING GOAL</span><h2>{initial.id ? '학습 목표 수정' : '새로운 목표 만들기'}</h2><label>학습 목표<input required value={form.title} onChange={e => update('title', e.target.value)} placeholder="예: 정보처리기사 합격하기" /></label><label>집중 분야<input required value={form.focusArea} onChange={e => update('focusArea', e.target.value)} placeholder="예: 데이터베이스" /></label><div className="form-grid"><label>시작일<input type="date" required value={form.startDate} onChange={e => update('startDate', e.target.value)} /></label><label>목표일<input type="date" required value={form.targetDate} onChange={e => update('targetDate', e.target.value)} /></label></div><div className="form-grid"><label>현재 수준<select value={form.currentLevel} onChange={e => update('currentLevel', e.target.value)}><option value="BEGINNER">초급</option><option value="INTERMEDIATE">중급</option><option value="ADVANCED">고급</option></select></label><label>하루 학습 시간<select value={form.dailyStudyHours} onChange={e => update('dailyStudyHours', Number(e.target.value))}>{[1,2,3,4,5,6,7,8].map(hour => <option key={hour} value={hour}>{hour}시간</option>)}</select></label></div><div className="form-label">학습 가능 요일</div><div className="day-picker">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map(day => <button type="button" key={day} className={form.availableDays.includes(day) ? 'selected' : ''} onClick={() => toggleDay(day)}>{dayLabels[day]}</button>)}</div><button className="primary-button full" disabled={saving}>{saving ? '저장 중...' : '저장하기'} <Check size={16} /></button></form></div>
+}
+
+function TaskModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ title: '', category: '', subject: '', difficulty: 3, allocatedMinutes: 30 })
+  const update = (key, value) => setForm(current => ({ ...current, [key]: value }))
+  return <div className="modal-backdrop" onClick={onClose}><form className="modal" onClick={e => e.stopPropagation()} onSubmit={async e => { e.preventDefault(); await onSave(form); onClose() }}><button type="button" className="modal-close" onClick={onClose}><X size={18} /></button><div className="modal-symbol"><BookOpen size={22} /></div><h2>직접 태스크 추가</h2><label>학습 내용<input required value={form.title} onChange={e => update('title', e.target.value)} /></label><label>분류<input required value={form.category} onChange={e => update('category', e.target.value)} /></label><label>주제<input required value={form.subject} onChange={e => update('subject', e.target.value)} /></label><div className="form-grid"><label>난이도<select value={form.difficulty} onChange={e => update('difficulty', Number(e.target.value))}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}</select></label><label>예상 시간(분)<input type="number" min="1" required value={form.allocatedMinutes} onChange={e => update('allocatedMinutes', Number(e.target.value))} /></label></div><button className="primary-button full">태스크 추가</button></form></div>
+}
+
+function Dashboard({ name, goal, tasks, schedule, onCreateGoal, onGoGoals, onGoSchedule }) {
+  if (!goal) return <><section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-dot" /> MY LEARNING SPACE</div><h1>안녕하세요, {name} 👋</h1><p>첫 학습 목표를 만들면 AI가 계획을 도와드려요.</p></div></section><EmptyState title="아직 학습 목표가 없어요" description="목표, 가능한 요일, 하루 학습 시간을 입력하면 맞춤 태스크와 일정을 만들 수 있어요." action="첫 목표 만들기" onAction={onCreateGoal} /></>
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })
+  const todayPlan = schedule?.dailySchedules?.find(day => day.date === today)
+  return <><section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-dot" /> CURRENT LEARNING GOAL</div><h1>안녕하세요, {name} 👋</h1><p>오늘도 목표를 향해 한 걸음 나아가볼까요?</p></div><button className="primary-button" onClick={onCreateGoal}><Plus size={18} />새 목표 만들기</button></section><section className="hero-grid"><div className="focus-card"><div className="focus-head"><div><span className="card-kicker">CURRENT GOAL</span><h2>{goal.title}</h2></div><div className="goal-icon"><Target size={26} /></div></div><div className="goal-meta"><span><CalendarDays size={15} />{goal.targetDate}</span><span><Clock3 size={15} />하루 {goal.dailyStudyHours}시간</span></div><div className="hero-progress"><div><span>검토 대기 태스크</span><strong>{tasks.length}개</strong></div><div className="progress-track"><span style={{ width: `${tasks.length ? 100 : 0}%` }} /></div><small>학습 수행 API가 추가되면 진척도가 반영됩니다.</small></div><button className="text-button" onClick={onGoGoals}>목표 자세히 보기 <ArrowRight size={16} /></button></div><div className="streak-card"><span className="card-kicker">SCHEDULE STATUS</span><h3>{schedule ? '생성된 학습 일정' : '학습 일정이 없어요'}</h3><div className="streak-number"><strong>{schedule?.dailySchedules?.length ?? 0}</strong><span>학습 예정<br />일자</span></div><p className="streak-tip">{schedule ? `${schedule.scheduleStartDate}부터 ${schedule.scheduleEndDate}까지` : '태스크를 확정한 뒤 일정을 만들어보세요.'}</p><button className="text-button purple" onClick={onGoSchedule}>일정 확인하기 <ArrowRight size={15} /></button></div></section><section className="today-card"><div className="today-card-head"><div><span className="card-kicker">TODAY'S PLAN · {goal.title}</span><h2>오늘 할 일</h2></div><span>{today}</span></div>{todayPlan?.items?.length ? <div className="today-items">{todayPlan.items.map(item => <div key={item.scheduleItemId}><span>{item.order}</span><strong>{item.title}</strong><small><Clock3 size={13} /> {item.allocatedMinutes}분</small></div>)}</div> : <p className="today-empty">오늘 배정된 학습이 없어요. 다음 학습 일정을 확인해보세요.</p>}</section></>
+}
+
+function GoalsPage({ goals, selectedGoal, tasks, schedule, onSelect, onCreate, onEdit, onDelete, onDeleteTask, onConfirmTasks, onGenerateTasks, onGenerateSchedule, onDeleteSchedule, isGeneratingTasks, isGeneratingSchedule }) {
+  if (!goals.length) return <><section className="welcome-row"><div><h1>학습 목표</h1><p>내가 이루고 싶은 학습 목표를 등록해보세요.</p></div></section><EmptyState title="등록된 목표가 없어요" description="첫 목표를 만들고 AI 학습 계획을 시작해보세요." action="새 목표 만들기" onAction={onCreate} /></>
+  const actualItems = (schedule?.dailySchedules ?? []).flatMap(day => day.items.map(item => ({ ...item, date: day.date, dayOfWeek: day.dayOfWeek })))
+  return <><section className="welcome-row"><div><h1>학습 목표</h1><p>목표별 할 일 목록과 학습 일정을 한 화면에서 관리하세요.</p></div><button className="primary-button" onClick={onCreate}><Plus size={17} />새 목표 만들기</button></section><div className="goal-selector">{goals.map(goal => <button key={goal.id} className={goal.id === selectedGoal?.id ? 'selected' : ''} onClick={() => onSelect(goal.id)}>{goal.title}</button>)}</div>{selectedGoal && <><section className="goal-main-card"><div className="goal-main-top"><div><span className="card-kicker">GOAL #{selectedGoal.id}</span><h2>{selectedGoal.title}</h2><p>{selectedGoal.focusArea} · {selectedGoal.currentLevel}</p></div><span className="goal-status">활성</span></div><div className="goal-stats"><div><strong>{selectedGoal.startDate}</strong><span>시작일</span></div><div><strong>{selectedGoal.targetDate}</strong><span>목표일</span></div><div><strong>{selectedGoal.dailyStudyHours}시간</strong><span>하루 학습</span></div></div><p className="goal-days">학습 가능 요일: {selectedGoal.availableDays.map(day => dayLabels[day]).join(' · ')}</p><div className="goal-action-row"><button className="outline-button" onClick={onEdit}>목표 수정</button><button className="danger-button" onClick={onDelete}><Trash2 size={13} />삭제</button></div></section><section className="goal-workspace-grid"><section className="goal-inline-section"><div className="goal-inline-head"><div><span className="card-kicker">TO-DO LIST</span><h2>할 일 목록</h2><p>일정에 배정된 실제 학습 할 일입니다.</p></div><button className="outline-button" onClick={onGenerateTasks} disabled={isGeneratingTasks}>{isGeneratingTasks ? <><span className="button-spinner" />AI 제안 생성 중...</> : <><Sparkles size={15} />AI 제안 만들기</>}</button></div>{actualItems.length ? <div className="goal-inline-list">{actualItems.map(item => <div className="goal-inline-item" key={item.scheduleItemId}><div><strong>{item.title}</strong><span>{item.date} · {dayLabels[item.dayOfWeek]}요일 · 일정에 배정됨</span></div><small><Clock3 size={13} />{item.allocatedMinutes}분</small></div>)}</div> : <div className="goal-inline-empty">확정되어 일정에 배정된 할 일이 없어요. AI 제안을 만든 뒤 할 일을 확정하고 일정을 생성해보세요.</div>}{tasks.length > 0 && <div className="goal-candidate-summary"><div className="goal-candidate-head"><span className="card-kicker">AI 제안 검토 · {tasks.length}</span><button className="primary-button" onClick={onConfirmTasks} disabled={isGeneratingTasks}><Check size={14} />할 일 확정</button></div><div className="goal-candidate-list">{tasks.map(task => <div className="goal-candidate-row" key={task.candidateId}><div><strong>{task.title}</strong><span>{task.subject} · {task.allocatedMinutes}분</span></div><button className="more-button" title="이 제안 삭제" onClick={() => onDeleteTask(task.candidateId)} disabled={isGeneratingTasks}><Trash2 size={16} /></button></div>)}</div></div>}</section><section className="goal-inline-section schedule-inline-section"><div className="goal-inline-head"><div><span className="card-kicker">LEARNING SCHEDULE</span><h2>학습 일정</h2><p>{schedule ? `${schedule.dailySchedules.length}일에 학습이 배정됐어요.` : '확정된 할 일을 바탕으로 일정을 생성하세요.'}</p></div><div className="schedule-inline-actions"><button className="outline-button" onClick={onGenerateSchedule} disabled={isGeneratingSchedule}>{isGeneratingSchedule ? <><span className="button-spinner" />일정 생성 중...</> : <><Sparkles size={15} />일정 생성</>}</button>{schedule && <button className="icon-button danger-icon" title="일정 삭제" onClick={onDeleteSchedule} disabled={isGeneratingSchedule}><Trash2 size={16} /></button>}</div></div>{schedule ? <div className="schedule-inline-list">{schedule.dailySchedules.map(day => <div className="schedule-inline-day" key={day.date}><strong>{day.date}</strong><span>{dayLabels[day.dayOfWeek]}요일 · {day.totalAllocatedMinutes}분</span>{day.items.map(item => <div className="schedule-inline-item" key={item.scheduleItemId}>{item.order}. {item.title}<small>{item.allocatedMinutes}분</small></div>)}</div>)}</div> : <div className="goal-inline-empty">아직 생성된 일정이 없어요. 할 일을 확정한 후 일정을 생성해보세요.</div>}</section></section></>}</>
+}
+
+function TasksPage({ tasks, schedule, goal, onGenerate, onAdd, onDelete, onConfirm, isGenerating }) {
+  if (!goal) return <EmptyState title="학습 목표를 먼저 만들어주세요" description="목표가 있어야 AI가 학습 태스크를 제안할 수 있어요." />
+  const actualItems = (schedule?.dailySchedules ?? []).flatMap(day => day.items.map(item => ({ ...item, date: day.date, dayOfWeek: day.dayOfWeek })))
+  return <><section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-dot" /> GOAL · {goal.title}</div><h1>할 일 목록</h1><p>“{goal.title}”의 확정된 학습 할 일을 확인하세요.</p></div><div className="task-filter-actions"><button className="outline-button" onClick={onAdd} disabled={isGenerating}><Plus size={15} />직접 추가</button><button className="primary-button" onClick={onGenerate} disabled={isGenerating}>{isGenerating ? <><span className="button-spinner" />AI 태스크 생성 중...</> : <><Sparkles size={16} />AI 제안 만들기</>}</button></div></section>{actualItems.length ? <section className="full-task-card"><div className="task-filter-row"><span className="card-kicker">CONFIRMED TO-DOS · {actualItems.length}</span></div>{actualItems.map(item => <div className="large-task-row" key={item.scheduleItemId}><div className="large-task-content"><div><strong>{item.title}</strong><span>{item.date} · {dayLabels[item.dayOfWeek]}요일 · 일정에 배정됨</span></div><div className="large-task-meta"><span><Clock3 size={13} />{item.allocatedMinutes}분</span><span className={`status ${item.status?.toLowerCase()}`}>{item.status}</span></div></div></div>)}</section> : <EmptyState title="확정되어 일정에 배정된 할 일이 없어요" description="AI 제안을 생성하고 확정한 뒤 학습 일정을 만들면 이곳에 실제 할 일이 표시됩니다." />}{isGenerating && <div className="generation-notice"><span className="button-spinner" /><div><strong>AI가 “{goal.title}”을 분석하고 있어요.</strong><span>세부 학습 태스크를 만들고 있습니다. 잠시만 기다려주세요.</span></div></div>}{tasks.length ? <section className="full-task-card candidate-section"><div className="task-filter-row"><span className="card-kicker">AI 제안 검토 · {tasks.length}</span><button className="primary-button" onClick={onConfirm} disabled={isGenerating}><Check size={15} />할 일 확정</button></div>{tasks.map(task => <div className="large-task-row" key={task.candidateId}><div className="large-task-content"><div><strong>{task.title}</strong><span>{task.subject} · {task.source === 'AI_GENERATED' ? 'AI 제안' : '직접 추가'}</span></div><div className="large-task-meta"><span className="category-pill">{task.category}</span><span><Clock3 size={13} />{task.allocatedMinutes}분</span><span className="importance">{Array.from({ length: 5 }, (_, i) => <i className={i < task.importance ? 'filled' : ''} key={i}>★</i>)}</span></div></div><button className="more-button" title="삭제" onClick={() => onDelete(task.candidateId)}><Trash2 size={17} /></button></div>)}</section> : !actualItems.length && !isGenerating && <EmptyState title="AI 제안이 없어요" description="새 제안을 만들거나 직접 할 일을 추가해보세요." action="AI 제안 만들기" onAction={onGenerate} />}</>
+}
+
+function SchedulePage({ schedule, goal, onGenerate, onDelete, isGenerating }) {
+  if (!goal) return <EmptyState title="학습 목표를 먼저 만들어주세요" description="목표와 확정된 태스크가 있어야 일정을 만들 수 있어요." />
+  if (!schedule) return <><section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-dot" /> GOAL · {goal.title}</div><h1>내 일정</h1><p>“{goal.title}”을 위한 AI 학습 일정을 생성하세요.</p></div></section>{isGenerating ? <div className="generation-notice"><span className="button-spinner" /><div><strong>AI가 학습 일정을 만들고 있어요.</strong><span>확정된 태스크와 가용 시간을 바탕으로 최적의 일정을 배정 중입니다.</span></div></div> : <EmptyState title="생성된 일정이 없어요" description="학습 태스크를 확정한 뒤 일정을 만들 수 있어요." action="학습 일정 생성" onAction={onGenerate} />}</>
+  return <><section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-dot" /> GOAL · {goal.title}</div><h1>내 일정</h1><p>{schedule.scheduleStartDate} — {schedule.scheduleEndDate}</p></div><div className="task-filter-actions"><button className="outline-button" onClick={onGenerate} disabled={isGenerating}>{isGenerating ? <><span className="button-spinner" />일정 생성 중...</> : <><Sparkles size={15} />새 일정 생성</>}</button><button className="danger-button" onClick={onDelete} disabled={isGenerating}><Trash2 size={14} />삭제</button></div></section>{isGenerating && <div className="generation-notice"><span className="button-spinner" /><div><strong>AI가 새 학습 일정을 만들고 있어요.</strong><span>잠시만 기다려주세요.</span></div></div>}<section className="schedule-page-card"><div className="schedule-page-toolbar"><strong>{goal.title} · 학습 스케줄</strong><span>{schedule.dailySchedules.length}일에 태스크가 배정됐어요.</span></div><div className="actual-schedule-list">{schedule.dailySchedules.map(day => <div className="actual-day" key={day.date}><div className="actual-date"><strong>{day.date}</strong><span>{dayLabels[day.dayOfWeek]}요일 · {day.totalAllocatedMinutes}분</span></div><div>{day.items.map(item => <div className="actual-item" key={item.scheduleItemId}><span>{item.order}.</span><strong>{item.title}</strong><small>{item.allocatedMinutes}분 · {item.status}</small></div>)}</div></div>)}</div></section></>
 }
 
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('steadyTeller.accessToken'))
   const [member, setMember] = useState(null)
   const [goals, setGoals] = useState([])
-  const [selectedGoal, setSelectedGoal] = useState(null)
-  const [currentScheduleId, setCurrentScheduleId] = useState(null)
-  const [calendarWeek, setCalendarWeek] = useState(week)
-  const [loading, setLoading] = useState(Boolean(token))
-  const [loadError, setLoadError] = useState('')
+  const [selectedGoalId, setSelectedGoalId] = useState(null)
+  const [tasks, setTasks] = useState([])
+  const [schedule, setSchedule] = useState(null)
   const [activeNav, setActiveNav] = useState('대시보드')
-  const [tasks, setTasks] = useState(tasksSeed)
+  const [loading, setLoading] = useState(Boolean(token))
+  const [error, setError] = useState('')
   const [toast, setToast] = useState('')
-  const [isModalOpen, setModalOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const completed = tasks.filter(t => t.status === 'FINISHED').length
-  const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0
-
-  const showToast = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2600) }
-  const toggleTask = (id) => setTasks(current => current.map(t => t.id === id ? { ...t, status: t.status === 'FINISHED' ? 'PENDING' : 'FINISHED' } : t))
-  const statusLabel = { PENDING: '예정', IN_PROGRESS: '진행 중', FINISHED: '완료' }
-
-  useEffect(() => {
-    if (!token) return
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      setLoadError('')
-      try {
-        const [me, goalList] = await Promise.all([api.member(), api.goals()])
-        if (cancelled) return
-        const goal = goalList?.[0] ?? null
-        setMember(me)
-        setGoals(goalList ?? [])
-        setSelectedGoal(goal)
-        if (goal) {
-          const [candidateList, scheduleList] = await Promise.all([api.candidates(goal.id), api.schedules(goal.id)])
-          if (cancelled) return
-          setTasks((candidateList ?? []).map(mapCandidate))
-          // ScheduleRepository는 startDate 내림차순으로 반환하므로 첫 번째가 최신 일정이다.
-          const latest = scheduleList?.[0]
-          if (latest) { setCurrentScheduleId(latest.scheduleId); setCalendarWeek(makeWeekFromSchedule(await api.schedule(latest.scheduleId))) }
-        } else { setTasks([]); setCalendarWeek([]); setCurrentScheduleId(null) }
-      } catch (error) {
-        if (!cancelled) setLoadError(error.message)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [token])
-
-  const handleLogin = (loggedInMember) => {
-    setMember(loggedInMember)
-    setToken(localStorage.getItem('steadyTeller.accessToken'))
-  }
-  const logout = () => {
-    localStorage.removeItem('steadyTeller.accessToken')
-    setToken(null)
-    setMember(null)
-    setGoals([])
-    setSelectedGoal(null)
-  }
-  const withdraw = async () => {
-    if (!window.confirm('회원 탈퇴를 진행할까요?')) return
-    try { await api.withdraw(); logout() } catch (error) { showToast(error.message) }
-  }
-  const refreshTasks = async () => {
-    if (!selectedGoal) return
-    const candidateList = await api.candidates(selectedGoal.id)
-    setTasks((candidateList ?? []).map(mapCandidate))
-  }
-  const generateTasks = async () => {
-    if (!selectedGoal) return showToast('먼저 학습 목표를 만들어주세요.')
-    try {
-      const candidateList = await api.generateTasks(selectedGoal.id)
-      setTasks((candidateList ?? []).map(mapCandidate))
-      showToast('AI가 학습 태스크를 생성했어요.')
-    } catch (error) { showToast(error.message) }
-  }
-  const confirmTasks = async () => {
-    if (!selectedGoal) return showToast('먼저 학습 목표를 만들어주세요.')
-    try {
-      const confirmed = await api.confirmTasks(selectedGoal.id)
-      setTasks((confirmed ?? []).map(task => ({ ...mapCandidate({ ...task, candidateId: task.id, allocatedMinutes: task.allocatedMinutes }), status: task.status })))
-      showToast('학습 태스크가 확정되었어요.')
-    } catch (error) { showToast(error.message) }
-  }
-  const generateSchedule = async () => {
-    if (!selectedGoal) return showToast('먼저 학습 목표를 만들어주세요.')
-    try {
-      const schedule = await api.generateSchedule(selectedGoal.id)
-      setCurrentScheduleId(schedule.scheduleId)
-      setCalendarWeek(makeWeekFromSchedule(schedule))
-      showToast('새 학습 일정이 생성되었어요.')
-    } catch (error) { showToast(error.message) }
-  }
-  const updateGoal = async () => {
-    if (!selectedGoal) return
-    try {
-      const updated = await api.updateGoal(selectedGoal.id, { title: selectedGoal.title, startDate: selectedGoal.startDate, targetDate: selectedGoal.targetDate, currentLevel: selectedGoal.currentLevel, dailyStudyHours: selectedGoal.dailyStudyHours, availableDays: selectedGoal.availableDays, focusArea: selectedGoal.focusArea })
-      setSelectedGoal(updated)
-      setGoals(current => current.map(goal => goal.id === updated.id ? updated : goal))
-      showToast('학습 목표가 업데이트되었어요.')
-    } catch (error) { showToast(error.message) }
-  }
-  const deleteGoal = async () => {
-    if (!selectedGoal || !window.confirm('현재 학습 목표를 삭제할까요?')) return
-    try {
-      await api.deleteGoal(selectedGoal.id)
-      setGoals(current => current.filter(goal => goal.id !== selectedGoal.id))
-      setSelectedGoal(null)
-      setTasks([])
-      setCalendarWeek([])
-      showToast('학습 목표가 삭제되었어요.')
-    } catch (error) { showToast(error.message) }
-  }
-  const addCandidate = async () => {
-    if (!selectedGoal) return showToast('먼저 학습 목표를 만들어주세요.')
-    try {
-      await api.addCandidate(selectedGoal.id, { title: '복습 태스크', category: selectedGoal.focusArea || '기타', subject: selectedGoal.focusArea || '기초 개념', difficulty: 3, allocatedMinutes: 30 })
-      await refreshTasks()
-      showToast('새 태스크가 추가되었어요.')
-    } catch (error) { showToast(error.message) }
-  }
-  const deleteCandidate = async (taskId) => {
-    if (!window.confirm('이 후보 태스크를 삭제할까요?')) return
-    try { await api.deleteCandidate(taskId); await refreshTasks(); showToast('후보 태스크가 삭제되었어요.') } catch (error) { showToast(error.message) }
-  }
-  const deleteSchedule = async () => {
-    if (!currentScheduleId || !window.confirm('현재 일정을 삭제할까요?')) return
-    try { await api.deleteSchedule(currentScheduleId); setCurrentScheduleId(null); setCalendarWeek([]); showToast('일정이 삭제되었어요.') } catch (error) { showToast(error.message) }
-  }
-  const createGoal = async () => {
-    try {
-      const today = new Date()
-      const target = new Date(today)
-      target.setDate(today.getDate() + 42)
-      const payload = { title: '정보처리기사 합격하기', startDate: today.toISOString().slice(0, 10), targetDate: target.toISOString().slice(0, 10), currentLevel: 'BEGINNER', dailyStudyHours: 1, availableDays: ['MON', 'WED', 'FRI'], focusArea: '데이터베이스' }
-      const goal = await api.createGoal(payload)
-      setGoals(current => [...current, goal])
-      setSelectedGoal(goal)
-      setModalOpen(false)
-      showToast('학습 목표가 생성되었어요.')
-    } catch (error) { showToast(error.message) }
-  }
-
-  if (!token) return <AuthScreen onLogin={handleLogin} />
-  if (loading) return <div className="app-loading"><Sparkles size={24} /><strong>SteadyTeller를 준비하고 있어요</strong><span>목표와 학습 계획을 불러오는 중입니다.</span></div>
-
-  return <div className="app-shell">
-    <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span><span>Steady<span className="brand-accent">Teller</span></span></div>
-      <div className="profile-mini"><div className="avatar">{(member?.nickname ?? '김').slice(0, 1)}</div><div><strong>{member?.nickname ?? '김하늘'}</strong><span>{member?.email ?? '꾸준히, 나답게'}</span></div><ChevronDown size={15} /></div>
-      <nav>
-        <p className="nav-label">WORKSPACE</p>
-        {[[LayoutDashboard, '대시보드'], [Target, '학습 목표'], [CalendarDays, '내 일정'], [BookOpen, '학습 태스크']].map(([Icon, label]) => <button key={label} className={activeNav === label ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(label)}><Icon size={19} /><span>{label}</span>{label === '학습 태스크' && <span className="nav-count">4</span>}</button>)}
-        <p className="nav-label nav-label-later">PERSONAL</p>
-        <button className="nav-item" onClick={() => showToast('학습 통계는 다음 업데이트에서 만나요.')}><Zap size={19} /><span>학습 리포트</span><span className="soon">SOON</span></button>
-        <button className="nav-item" onClick={() => setSettingsOpen(true)}><Settings size={19} /><span>계정 설정</span></button>
-        <button className="nav-item" onClick={logout}><span className="logout-mark">↪</span><span>로그아웃</span></button>
-      </nav>
-      <div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><CircleHelp size={18} /></div><strong>Steady하게 시작해요</strong><p>목표를 세우면 AI가<br />나에게 맞는 계획을 짜드려요.</p><button onClick={() => setModalOpen(true)}>목표 설정하기 <ArrowRight size={14} /></button></div><div className="sidebar-foot"><span>© 2026 SteadyTeller</span><span>도움말</span></div></div>
-    </aside>
-    <main className="main-content">
-      <header className="topbar"><button className="mobile-menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> {activeNav}</div><div className="top-actions"><button className="icon-button"><Search size={19} /></button><button className="icon-button notification"><Bell size={19} /><i /></button><div className="top-avatar">{(member?.nickname ?? '김').slice(0, 1)}</div></div></header>
-      <div className="content-wrap">
-        {loadError && <div className="connection-error"><CircleHelp size={16} /><span>{loadError}</span><button onClick={() => window.location.reload()}>다시 시도</button></div>}
-        {activeNav !== '대시보드' && <WorkspacePage activeNav={activeNav} tasks={tasks} toggleTask={toggleTask} statusLabel={statusLabel} goal={selectedGoal} onCreate={activeNav === '학습 태스크' ? generateTasks : () => setModalOpen(true)} onConfirm={confirmTasks} onGenerateSchedule={generateSchedule} onUpdate={updateGoal} onDelete={activeNav === '학습 목표' ? deleteGoal : deleteCandidate} onAdd={addCandidate} onDeleteCandidate={deleteCandidate} onDeleteSchedule={deleteSchedule} week={calendarWeek} showToast={showToast} />}
-        {activeNav === '대시보드' && <>
-        <section className="welcome-row"><div><div className="eyebrow"><span className="eyebrow-dot" /> MONDAY, SEPTEMBER 8, 2026</div><h1>안녕하세요, 하늘님 <span>👋</span></h1><p>오늘도 작은 한 걸음을 쌓아볼까요?</p></div><button className="primary-button" onClick={() => setModalOpen(true)}><Plus size={18} /> 새 목표 만들기</button></section>
-        <section className="hero-grid"><div className="focus-card"><div className="focus-head"><div><span className="card-kicker">CURRENT GOAL</span><h2>정보처리기사<br /><em>합격하기</em></h2></div><div className="goal-icon"><Target size={26} /></div></div><div className="goal-meta"><span><CalendarDays size={15} /> D-42</span><span><Clock3 size={15} /> 하루 1시간</span><span className="goal-tag">진행 중</span></div><div className="hero-progress"><div><span>전체 진행률</span><strong>{progress}%</strong></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><small>4개 중 {completed}개 태스크 완료</small></div><button className="text-button" onClick={() => setActiveNav('학습 목표')}>목표 자세히 보기 <ArrowRight size={16} /></button></div><div className="streak-card"><div className="streak-top"><div><span className="card-kicker">MY RHYTHM</span><h3>이번 주 학습 리듬</h3></div><div className="flame"><Flame size={22} fill="currentColor" /></div></div><div className="streak-number"><strong>3</strong><span>일 연속<br />학습 중</span></div><div className="week-dots">{['월','화','수','목','금','토','일'].map((d, i) => <div key={d} className={i < 3 ? 'day done' : i === 3 ? 'day today' : 'day'}><span>{d}</span><i>{i < 3 ? <Check size={12} /> : ''}</i></div>)}</div><p className="streak-tip"><span>✦</span> 지금 흐름이 좋아요. 오늘도 이어가볼까요?</p></div></section>
-        <section className="section-head"><div><h2>이번 주 일정</h2><p>가용 시간을 바탕으로 배치된 학습 계획이에요.</p></div><button className="outline-button" onClick={() => setActiveNav('내 일정')}>전체 일정 보기 <ArrowRight size={15} /></button></section>
-        <section className="schedule-card"><div className="schedule-toolbar"><button className="month-button">2026년 9월 <ChevronDown size={15} /></button><div className="legend"><span><i className="legend-dot blue" /> 학습 예정</span><span><i className="legend-dot purple" /> 복습</span></div></div><div className="calendar-grid">{calendarWeek.map((day, index) => <div className={index === 0 ? 'calendar-day selected' : 'calendar-day'} key={day.date}><div className="date-head"><span>{day.day}</span><strong>{day.date}</strong></div><div className="day-items">{day.items.length ? day.items.map((item, i) => <div className={`schedule-item ${item.state}`} key={i}><div className="item-time">{item.time}</div><strong>{item.title}</strong><span><Clock3 size={12} /> {item.minutes}분</span></div>) : <button className="empty-day" onClick={() => showToast(`${day.day}요일에 학습을 추가할 수 있어요.`)}><Plus size={16} /><span>학습 추가</span></button>}</div></div>)}</div></section>
-        <section className="section-head tasks-head"><div><h2>학습 태스크 검토</h2><p>AI가 목표에 맞춰 제안한 태스크예요. 확인하고 나만의 계획을 완성해보세요.</p></div><button className="outline-button" onClick={() => setActiveNav('학습 태스크')}>전체 보기 <ArrowRight size={15} /></button></section>
-        <section className="task-card"><div className="task-table-head"><span>학습 내용</span><span>분류</span><span>예상 시간</span><span>중요도</span><span>상태</span><span /></div>{tasks.map(task => <div className="task-row" key={task.id}><button className={task.status === 'FINISHED' ? 'check-box checked' : 'check-box'} onClick={() => toggleTask(task.id)}>{task.status === 'FINISHED' && <Check size={14} />}</button><div className={task.status === 'FINISHED' ? 'task-title completed' : 'task-title'}><strong>{task.title}</strong><span>{task.source === 'AI_GENERATED' ? '✦ AI 추천' : '직접 추가'} · {task.subject}</span></div><span className="category-pill">{task.category}</span><span className="minutes"><Clock3 size={14} /> {task.minutes}분</span><span className="importance">{Array.from({ length: 5 }, (_, i) => <i className={i < task.importance ? 'filled' : ''} key={i}>★</i>)}</span><span className={`status ${task.status.toLowerCase()}`}>{statusLabel[task.status]}</span><button className="more-button" onClick={() => showToast('태스크 상세 메뉴를 준비 중이에요.')}><MoreHorizontal size={18} /></button></div>)}<button className="add-task" onClick={() => showToast('새 태스크를 추가할 수 있어요.')}><Plus size={16} /> 직접 태스크 추가하기</button></section>
-        <footer className="page-footer"><span><Sparkles size={14} /> 오늘의 꾸준함이 내일의 실력이 돼요.</span><span>마지막 동기화 · 방금 전</span></footer>
-        </>}
-      </div>
-    </main>
-    {isModalOpen && <div className="modal-backdrop" onClick={() => setModalOpen(false)}><div className="modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setModalOpen(false)}><X size={18} /></button><div className="modal-symbol"><Target size={24} /></div><span className="card-kicker">NEW GOAL</span><h2>새로운 목표를 시작해요</h2><p>목표와 학습 가능 시간을 알려주면<br />나에게 맞는 계획을 만들어드릴게요.</p><label>학습 목표<input defaultValue="정보처리기사 합격하기" /></label><label>집중 분야<input placeholder="예: 데이터베이스, 운영체제" /></label><button className="primary-button full" onClick={createGoal}>AI 계획 만들기 <Sparkles size={16} /></button></div></div>}
-    {settingsOpen && <SettingsPanel member={member} onClose={() => setSettingsOpen(false)} onLogout={withdraw} showToast={showToast} />}
-    {toast && <div className="toast"><Check size={16} /> {toast}</div>}
-  </div>
+  const [goalModal, setGoalModal] = useState(null)
+  const [taskModal, setTaskModal] = useState(false)
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false)
+  const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false)
+  const selectedGoal = goals.find(goal => goal.id === selectedGoalId) ?? null
+  const showToast = useCallback(message => { setToast(message); window.setTimeout(() => setToast(''), 2600) }, [])
+  const loadGoalData = useCallback(async goalId => { if (!goalId) { setTasks([]); setSchedule(null); return }; const [candidates, summaries] = await Promise.all([api.candidates(goalId), api.schedules(goalId)]); setTasks(candidates ?? []); const latest = summaries?.[0]; setSchedule(latest ? await api.schedule(latest.scheduleId) : null) }, [])
+  const refresh = useCallback(async () => { setLoading(true); setError(''); try { const [me, loadedGoals] = await Promise.all([api.member(), api.goals()]); setMember(me); setGoals(loadedGoals ?? []); const nextId = loadedGoals?.some(goal => goal.id === selectedGoalId) ? selectedGoalId : loadedGoals?.[0]?.id ?? null; setSelectedGoalId(nextId); await loadGoalData(nextId) } catch (err) { setError(err.message) } finally { setLoading(false) } }, [loadGoalData, selectedGoalId])
+  useEffect(() => { if (token) refresh() }, [token])
+  useEffect(() => { if (token && selectedGoalId) loadGoalData(selectedGoalId).catch(err => setError(err.message)) }, [selectedGoalId])
+  const logout = () => { localStorage.removeItem('steadyTeller.accessToken'); setToken(null); setMember(null); setGoals([]); setTasks([]); setSchedule(null) }
+  const saveGoal = async form => { try { const saved = goalModal?.id ? await api.updateGoal(goalModal.id, form) : await api.createGoal(form); setGoals(current => goalModal?.id ? current.map(goal => goal.id === saved.id ? saved : goal) : [...current, saved]); setSelectedGoalId(saved.id); showToast('학습 목표가 저장됐어요.') } catch (err) { showToast(err.message); throw err } }
+  const removeGoal = async () => { if (!selectedGoal || !window.confirm('학습 목표를 삭제할까요?')) return; try { await api.deleteGoal(selectedGoal.id); const remaining = goals.filter(goal => goal.id !== selectedGoal.id); setGoals(remaining); setSelectedGoalId(remaining[0]?.id ?? null); if (!remaining.length) { setTasks([]); setSchedule(null) }; showToast('학습 목표가 삭제됐어요.') } catch (err) { showToast(err.message) } }
+  const generateTasks = async () => { if (!selectedGoal || isGeneratingTasks) return showToast('먼저 학습 목표를 만들어주세요.'); setIsGeneratingTasks(true); try { setTasks(await api.generateTasks(selectedGoal.id)); showToast('AI 태스크를 생성했어요.') } catch (err) { showToast(err.message) } finally { setIsGeneratingTasks(false) } }
+  const addTask = async form => { if (!selectedGoal) return; try { const created = await api.addCandidate(selectedGoal.id, form); setTasks(current => [...current, created]); showToast('태스크를 추가했어요.') } catch (err) { showToast(err.message); throw err } }
+  const deleteTask = async id => { if (!window.confirm('태스크를 삭제할까요?')) return; try { await api.deleteCandidate(id); setTasks(current => current.filter(task => task.candidateId !== id)); showToast('태스크를 삭제했어요.') } catch (err) { showToast(err.message) } }
+  const confirmTasks = async () => { if (!selectedGoal) return; try { await api.confirmTasks(selectedGoal.id); setTasks([]); showToast('태스크가 확정됐어요. 이제 일정을 생성할 수 있어요.') } catch (err) { showToast(err.message) } }
+  const generateSchedule = async () => { if (!selectedGoal || isGeneratingSchedule) return showToast('먼저 학습 목표를 만들어주세요.'); setIsGeneratingSchedule(true); try { setSchedule(await api.generateSchedule(selectedGoal.id)); showToast('학습 일정이 생성됐어요.') } catch (err) { showToast(err.message) } finally { setIsGeneratingSchedule(false) } }
+  const deleteSchedule = async () => { if (!schedule || !window.confirm('현재 일정을 삭제할까요?')) return; try { await api.deleteSchedule(schedule.scheduleId); setSchedule(null); showToast('일정을 삭제했어요.') } catch (err) { showToast(err.message) } }
+  if (!token) return <AuthScreen onLogin={() => setToken(localStorage.getItem('steadyTeller.accessToken'))} />
+  if (loading) return <div className="app-loading"><Sparkles size={24} /><strong>내 학습 정보를 불러오는 중이에요.</strong></div>
+  const nav = [[LayoutDashboard, '대시보드'], [Target, '학습 목표']]
+  const name = member?.nickname ? `${member.nickname}님` : '학습자님'
+  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span>Steady<span className="brand-accent">Teller</span></div><div className="profile-mini"><div className="avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div><div><strong>{member?.nickname ?? '회원'}</strong><span>{member?.email ?? ''}</span></div></div><nav><p className="nav-label">WORKSPACE</p>{nav.map(([Icon, label]) => <button className={activeNav === label ? 'nav-item active' : 'nav-item'} key={label} onClick={() => setActiveNav(label)}><Icon size={19} />{label}</button>)}<p className="nav-label nav-label-later">ACCOUNT</p><button className="nav-item" onClick={logout}><LogOut size={19} />로그아웃</button></nav></aside><main className="main-content"><header className="topbar"><button className="mobile-menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> {activeNav}</div><div className="global-goal-picker">{goals.length ? <><Target size={15} /><select value={selectedGoalId ?? ''} onChange={event => setSelectedGoalId(Number(event.target.value))}>{goals.map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></> : <span>선택한 목표 없음</span>}</div><div className="top-actions"><button className="icon-button"><Bell size={19} /></button><div className="top-avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div></div></header><div className="content-wrap">{error && <div className="connection-error"><span>{error}</span><button onClick={refresh}>다시 시도</button></div>}{activeNav === '대시보드' && <Dashboard name={name} goal={selectedGoal} tasks={tasks} schedule={schedule} onCreateGoal={() => setGoalModal(emptyGoal)} onGoGoals={() => setActiveNav('학습 목표')} onGoSchedule={() => setActiveNav('학습 목표')} />}{activeNav === '학습 목표' && <GoalsPage goals={goals} selectedGoal={selectedGoal} tasks={tasks} schedule={schedule} onSelect={setSelectedGoalId} onCreate={() => setGoalModal(emptyGoal)} onEdit={() => selectedGoal && setGoalModal(selectedGoal)} onDelete={removeGoal} onDeleteTask={deleteTask} onConfirmTasks={confirmTasks} onGenerateTasks={generateTasks} onGenerateSchedule={generateSchedule} onDeleteSchedule={deleteSchedule} isGeneratingTasks={isGeneratingTasks} isGeneratingSchedule={isGeneratingSchedule} />}</div></main>{goalModal && <GoalModal initial={goalModal} onClose={() => setGoalModal(null)} onSave={saveGoal} />}{toast && <div className="toast"><Check size={16} />{toast}</div>}</div>
 }
 
 createRoot(document.getElementById('root')).render(<App />)
