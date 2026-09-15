@@ -1,6 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? ''
 
-async function request(path, options = {}) {
+export const AUTH_EXPIRED_EVENT = 'steadyTeller:auth-expired'
+
+export async function request(path, options = {}) {
   const token = localStorage.getItem('steadyTeller.accessToken')
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -13,6 +15,10 @@ async function request(path, options = {}) {
 
   const body = await response.json().catch(() => null)
   if (!response.ok || body?.success === false) {
+    if (response.status === 401) {
+      localStorage.removeItem('steadyTeller.accessToken')
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+    }
     throw new Error(body?.message || `요청에 실패했습니다. (${response.status})`)
   }
   return body?.data
@@ -49,6 +55,9 @@ export const api = {
   startScheduleItem: (scheduleId, itemId) => request(`/api/v1/schedules/${scheduleId}/items/${itemId}/start`, { method: 'PATCH' }),
   completeScheduleItem: (scheduleId, itemId) => request(`/api/v1/schedules/${scheduleId}/items/${itemId}/complete`, { method: 'PATCH' }),
   revertScheduleItemCompletion: (scheduleId, itemId) => request(`/api/v1/schedules/${scheduleId}/items/${itemId}/complete`, { method: 'DELETE' }),
+  statisticsSummary: (startDate, endDate) => request(`/api/v1/statistics/summary?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`),
+  dailyStatistics: (startDate, endDate) => request(`/api/v1/statistics/daily?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`),
+  goalStatistics: goalId => request(`/api/v1/statistics/goals/${goalId}`),
   learningProfile: () => request('/api/v1/members/me/learning-profile'),
   updateLearningProfile: (payload) => request('/api/v1/members/me/learning-profile', { method: 'PUT', body: JSON.stringify(payload) }),
   availabilities: () => request('/api/v1/members/me/availabilities'),
