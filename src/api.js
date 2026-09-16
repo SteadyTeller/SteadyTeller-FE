@@ -42,6 +42,7 @@ export const api = {
   updateGoal: (goalId, payload) => request(`/api/v1/goals/${goalId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteGoal: (goalId) => request(`/api/v1/goals/${goalId}`, { method: 'DELETE' }),
   candidates: (goalId) => request(`/api/v1/goals/${goalId}/tasks`),
+  confirmedTasks: (goalId) => request(`/api/v1/goals/${goalId}/tasks/confirmed`),
   generateTasks: (goalId) => request(`/api/v1/goals/${goalId}/tasks/generate`, { method: 'POST' }),
   addCandidate: (goalId, payload) => request(`/api/v1/goals/${goalId}/tasks`, { method: 'POST', body: JSON.stringify(payload) }),
   updateCandidate: (taskId, payload) => request(`/api/v1/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
