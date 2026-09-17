@@ -37,6 +37,7 @@ export const api = {
   updateMember: (payload) => request('/api/v1/members/me', { method: 'PATCH', body: JSON.stringify(payload) }),
   withdraw: () => request('/api/v1/members/me', { method: 'DELETE' }),
   goal: (goalId) => request(`/api/v1/goals/${goalId}`),
+  goalDeadline: (goalId) => request(`/api/v1/goals/${goalId}/deadline`),
   goals: () => request('/api/v1/goals'),
   createGoal: (payload) => request('/api/v1/goals', { method: 'POST', body: JSON.stringify(payload) }),
   updateGoal: (goalId, payload) => request(`/api/v1/goals/${goalId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
