@@ -1,7 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ArrowRight, BarChart3, Bell, BookOpen, CalendarDays, Check, Clock3, LayoutDashboard, LogOut, Menu, MoreHorizontal, Play, Plus, RotateCcw, Sparkles, Target, Trash2, X } from 'lucide-react'
 import { api, AUTH_EXPIRED_EVENT } from './api'
+import StudyTimer from './StudyTimer.jsx'
+import AvailabilityEditor from './AvailabilityEditor.jsx'
+import GoalDeadlineNotice from './GoalDeadlineNotice.jsx'
+import { timerStorageKey, readTimer } from './timer.js'
 import { clampPercentage, formatMinutes, statisticsDateRange } from './statistics'
 import './styles.css'
 import './pages.css'
@@ -45,7 +49,7 @@ function GoalModal({ initial = emptyGoal, onClose, onSave }) {
   const update = (key, value) => setForm(current => ({ ...current, [key]: value }))
   const toggleDay = day => update('availableDays', form.availableDays.includes(day) ? form.availableDays.filter(item => item !== day) : [...form.availableDays, day])
   async function submit(event) { event.preventDefault(); setSaving(true); try { await onSave(form); onClose() } finally { setSaving(false) } }
-  return <div className="modal-backdrop" onClick={onClose}><form className="modal goal-modal" onClick={e => e.stopPropagation()} onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={18} /></button><div className="modal-symbol"><Target size={24} /></div><span className="card-kicker">LEARNING GOAL</span><h2>{initial.id ? '학습 목표 수정' : '새로운 목표 만들기'}</h2><label>학습 목표<input required value={form.title} onChange={e => update('title', e.target.value)} placeholder="예: 정보처리기사 합격하기" /></label><label>집중 분야<input required value={form.focusArea} onChange={e => update('focusArea', e.target.value)} placeholder="예: 데이터베이스" /></label><div className="form-grid"><label>시작일<input type="date" required value={form.startDate} onChange={e => update('startDate', e.target.value)} /></label><label>목표일<input type="date" required value={form.targetDate} onChange={e => update('targetDate', e.target.value)} /></label></div><div className="form-grid"><label>현재 수준<select value={form.currentLevel} onChange={e => update('currentLevel', e.target.value)}><option value="BEGINNER">초급</option><option value="INTERMEDIATE">중급</option><option value="ADVANCED">고급</option></select></label><label>하루 학습 시간<select value={form.dailyStudyHours} onChange={e => update('dailyStudyHours', Number(e.target.value))}>{[1,2,3,4,5,6,7,8].map(hour => <option key={hour} value={hour}>{hour}시간</option>)}</select></label></div><div className="form-label">학습 가능 요일</div><div className="day-picker">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map(day => <button type="button" key={day} className={form.availableDays.includes(day) ? 'selected' : ''} onClick={() => toggleDay(day)}>{dayLabels[day]}</button>)}</div><button className="primary-button full" disabled={saving}>{saving ? '저장 중...' : '저장하기'} <Check size={16} /></button></form></div>
+  return <div className="modal-backdrop" onClick={onClose}><form className="modal goal-modal" onClick={e => e.stopPropagation()} onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={18} /></button><div className="modal-symbol"><Target size={24} /></div><span className="card-kicker">LEARNING GOAL</span><h2>{initial.id ? '학습 목표 수정' : '새로운 목표 만들기'}</h2><label>학습 목표<input required value={form.title} onChange={e => update('title', e.target.value)} placeholder="예: 정보처리기사 합격하기" /></label><label>집중 분야<input required value={form.focusArea} onChange={e => update('focusArea', e.target.value)} placeholder="예: 데이터베이스" /></label><div className="form-grid"><label>시작일<input type="date" required value={form.startDate} onChange={e => update('startDate', e.target.value)} /></label><label>목표일<input type="date" required value={form.targetDate} onChange={e => update('targetDate', e.target.value)} /></label></div><div className="form-grid"><label>현재 수준<select value={form.currentLevel} onChange={e => update('currentLevel', e.target.value)}><option value="BEGINNER">초급</option><option value="INTERMEDIATE">중급</option><option value="ADVANCED">고급</option></select></label><label>하루 학습 시간<select value={form.dailyStudyHours} onChange={e => update('dailyStudyHours', Number(e.target.value))}>{[1,2,3,4,5,6,7,8].map(hour => <option key={hour} value={hour}>{hour}시간</option>)}</select></label></div><div className="form-label">학습 가능 요일</div><div className="day-picker">{['MON','TUE','WED','THU','FRI','SAT','SUN'].map(day => <button type="button" key={day} className={form.availableDays.includes(day) ? 'selected' : ''} onClick={() => toggleDay(day)}>{dayLabels[day]}</button>)}</div><AvailabilityEditor /><button className="primary-button full" disabled={saving}>{saving ? '저장 중...' : '저장하기'} <Check size={16} /></button></form></div>
 }
 
 function TaskModal({ onClose, onSave }) {
@@ -56,7 +60,7 @@ function TaskModal({ onClose, onSave }) {
 
 function ItemStatusAction({ item, onStart, onComplete, onRevert }) {
   if (item.status === 'PENDING') return <button className="text-button" onClick={() => onStart(item.scheduleItemId)}><Play size={13} />학습 시작</button>
-  if (item.status === 'IN_PROGRESS') return <button className="text-button purple" onClick={() => onComplete(item.scheduleItemId)}><Check size={13} />완료</button>
+  if (item.status === 'IN_PROGRESS') return <><button className="text-button" onClick={() => onStart(item.scheduleItemId)}><Clock3 size={13} />타이머 시작</button><button className="text-button purple" onClick={() => onComplete(item.scheduleItemId)}><Check size={13} />완료</button></>
   if (item.status === 'FINISHED') return <button className="text-button" onClick={() => onRevert(item.scheduleItemId)}><RotateCcw size={13} />완료 취소</button>
   return null
 }
@@ -101,6 +105,10 @@ function App() {
   const [goals, setGoals] = useState([])
   const [selectedGoalId, setSelectedGoalId] = useState(null)
   const [tasks, setTasks] = useState([])
+  const [timerItem, setTimerItem] = useState(null)
+  const timerStarting = useRef(false)
+  useEffect(() => { if (!token) { setTimerItem(null); timerStarting.current = false } }, [token])
+  const finishTimer = () => { timerStarting.current = false; setTimerItem(null); showToast('결과 초안을 이 브라우저에 보관했어요.') }
   const [schedule, setSchedule] = useState(null)
   const [statistics, setStatistics] = useState({ summary: null, daily: [], goal: null })
   const [statisticsLoading, setStatisticsLoading] = useState(false)
@@ -130,14 +138,37 @@ function App() {
   const generateSchedule = async () => { if (!selectedGoal || isGeneratingSchedule) return showToast('먼저 학습 목표를 만들어주세요.'); setIsGeneratingSchedule(true); try { setSchedule(await api.generateSchedule(selectedGoal.id)); await loadStatistics(selectedGoal); showToast('학습 일정이 생성됐어요.') } catch (err) { showToast(err.message) } finally { setIsGeneratingSchedule(false) } }
   const deleteSchedule = async () => { if (!schedule || !window.confirm('현재 일정을 삭제할까요?')) return; try { await api.deleteSchedule(schedule.scheduleId); setSchedule(null); await loadStatistics(selectedGoal); showToast('일정을 삭제했어요.') } catch (err) { showToast(err.message) } }
   const applyItemUpdate = useCallback(updatedItem => setSchedule(current => current ? { ...current, dailySchedules: current.dailySchedules.map(day => ({ ...day, items: day.items.map(item => item.scheduleItemId === updatedItem.scheduleItemId ? { ...item, ...updatedItem } : item) })) } : current), [])
-  const startItem = async itemId => { try { applyItemUpdate(await api.startScheduleItem(schedule.scheduleId, itemId)); showToast('학습을 시작했어요.') } catch (err) { showToast(err.message) } }
-  const completeItem = async itemId => { try { applyItemUpdate(await api.completeScheduleItem(schedule.scheduleId, itemId)); await loadStatistics(selectedGoal); showToast('학습을 완료했어요.') } catch (err) { showToast(err.message) } }
+  const startItem = async itemId => {
+    if (timerStarting.current || readTimer(localStorage, timerStorageKey(member.id))) return showToast('진행 중인 타이머의 결과를 먼저 저장해주세요.')
+    const item = schedule.dailySchedules.flatMap(day => day.items).find(value => value.scheduleItemId === itemId)
+    if (!item) return showToast('학습 항목을 다시 조회해주세요.')
+    timerStarting.current = true
+    let started = false
+    try {
+      const updated = await api.startScheduleItem(schedule.scheduleId, itemId)
+      if (updated.status !== 'IN_PROGRESS') return showToast('완료된 항목은 다시 시작할 수 없어요.')
+      applyItemUpdate(updated)
+      setTimerItem({ ...item, scheduleId: schedule.scheduleId })
+      started = true
+      showToast('학습 타이머를 시작했어요.')
+    } catch (err) { showToast(err.message) }
+    finally { if (!started) timerStarting.current = false }
+  }
+  const completeTimerItem = async (scheduleId, itemId) => {
+    const updated = await api.completeScheduleItem(scheduleId, itemId)
+    if (schedule?.scheduleId === scheduleId) applyItemUpdate(updated)
+    await loadStatistics(selectedGoal)
+  }
+  const completeItem = async itemId => {
+    if (readTimer(localStorage, timerStorageKey(member.id))) return showToast('타이머에서 종료·결과 입력을 눌러주세요.')
+    try { applyItemUpdate(await api.completeScheduleItem(schedule.scheduleId, itemId)); await loadStatistics(selectedGoal); showToast('학습을 완료했어요.') } catch (err) { showToast(err.message) }
+  }
   const revertItem = async itemId => { try { applyItemUpdate(await api.revertScheduleItemCompletion(schedule.scheduleId, itemId)); await loadStatistics(selectedGoal); showToast('완료 처리를 취소했어요.') } catch (err) { showToast(err.message) } }
   if (!token) return <AuthScreen onLogin={() => setToken(localStorage.getItem('steadyTeller.accessToken'))} />
   if (loading) return <div className="app-loading"><Sparkles size={24} /><strong>내 학습 정보를 불러오는 중이에요.</strong></div>
   const nav = [[LayoutDashboard, '대시보드'], [Target, '학습 목표'], [BarChart3, '학습 통계']]
   const name = member?.nickname ? `${member.nickname}님` : '학습자님'
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span>Steady<span className="brand-accent">Teller</span></div><div className="profile-mini"><div className="avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div><div><strong>{member?.nickname ?? '회원'}</strong><span>{member?.email ?? ''}</span></div></div><nav><p className="nav-label">WORKSPACE</p>{nav.map(([Icon, label]) => <button className={activeNav === label ? 'nav-item active' : 'nav-item'} key={label} onClick={() => setActiveNav(label)}><Icon size={19} />{label}</button>)}<p className="nav-label nav-label-later">ACCOUNT</p><button className="nav-item" onClick={logout}><LogOut size={19} />로그아웃</button></nav></aside><main className="main-content"><header className="topbar"><button className="mobile-menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> {activeNav}</div><div className="global-goal-picker">{goals.length ? <><Target size={15} /><select value={selectedGoalId ?? ''} onChange={event => setSelectedGoalId(Number(event.target.value))}>{goals.map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></> : <span>선택한 목표 없음</span>}</div><div className="top-actions"><button className="icon-button"><Bell size={19} /></button><div className="top-avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div></div></header><div className="content-wrap">{error && <div className="connection-error"><span>{error}</span><button onClick={refresh}>다시 시도</button></div>}{activeNav === '대시보드' && <Dashboard name={name} goal={selectedGoal} schedule={schedule} goalStatistics={statistics.goal} onCreateGoal={() => setGoalModal(emptyGoal)} onGoGoals={() => setActiveNav('학습 목표')} onGoSchedule={() => setActiveNav('학습 목표')} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '학습 목표' && <GoalsPage goals={goals} selectedGoal={selectedGoal} tasks={tasks} schedule={schedule} onSelect={setSelectedGoalId} onCreate={() => setGoalModal(emptyGoal)} onEdit={() => selectedGoal && setGoalModal(selectedGoal)} onDelete={removeGoal} onDeleteTask={deleteTask} onConfirmTasks={confirmTasks} onGenerateTasks={generateTasks} onGenerateSchedule={generateSchedule} onDeleteSchedule={deleteSchedule} isGeneratingTasks={isGeneratingTasks} isGeneratingSchedule={isGeneratingSchedule} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '학습 통계' && <StatisticsPage goal={selectedGoal} summary={statistics.summary} daily={statistics.daily} goalStatistics={statistics.goal} loading={statisticsLoading} />}</div></main>{goalModal && <GoalModal initial={goalModal} onClose={() => setGoalModal(null)} onSave={saveGoal} />}{toast && <div className="toast"><Check size={16} />{toast}</div>}</div>
+  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span>Steady<span className="brand-accent">Teller</span></div><div className="profile-mini"><div className="avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div><div><strong>{member?.nickname ?? '회원'}</strong><span>{member?.email ?? ''}</span></div></div><nav><p className="nav-label">WORKSPACE</p>{nav.map(([Icon, label]) => <button className={activeNav === label ? 'nav-item active' : 'nav-item'} key={label} onClick={() => setActiveNav(label)}><Icon size={19} />{label}</button>)}<p className="nav-label nav-label-later">ACCOUNT</p><button className="nav-item" onClick={logout}><LogOut size={19} />로그아웃</button></nav></aside><main className="main-content"><header className="topbar"><button className="mobile-menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> {activeNav}</div><div className="global-goal-picker">{goals.length ? <><Target size={15} /><select value={selectedGoalId ?? ''} onChange={event => setSelectedGoalId(Number(event.target.value))}>{goals.map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></> : <span>선택한 목표 없음</span>}</div><div className="top-actions"><button className="icon-button"><Bell size={19} /></button><div className="top-avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div></div></header><div className="content-wrap">{selectedGoal && <GoalDeadlineNotice key={selectedGoal.id} goalId={selectedGoal.id} refreshToken={schedule} />}{error && <div className="connection-error"><span>{error}</span><button onClick={refresh}>다시 시도</button></div>}{activeNav === '대시보드' && <Dashboard name={name} goal={selectedGoal} schedule={schedule} goalStatistics={statistics.goal} onCreateGoal={() => setGoalModal(emptyGoal)} onGoGoals={() => setActiveNav('학습 목표')} onGoSchedule={() => setActiveNav('학습 목표')} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '학습 목표' && <GoalsPage goals={goals} selectedGoal={selectedGoal} tasks={tasks} schedule={schedule} onSelect={setSelectedGoalId} onCreate={() => setGoalModal(emptyGoal)} onEdit={() => selectedGoal && setGoalModal(selectedGoal)} onDelete={removeGoal} onDeleteTask={deleteTask} onConfirmTasks={confirmTasks} onGenerateTasks={generateTasks} onGenerateSchedule={generateSchedule} onDeleteSchedule={deleteSchedule} isGeneratingTasks={isGeneratingTasks} isGeneratingSchedule={isGeneratingSchedule} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '학습 통계' && <StatisticsPage goal={selectedGoal} summary={statistics.summary} daily={statistics.daily} goalStatistics={statistics.goal} loading={statisticsLoading} />}</div></main>{member && <StudyTimer key={member.id} memberId={member.id} item={timerItem} onComplete={completeTimerItem} onFinished={finishTimer} />}{goalModal && <GoalModal initial={goalModal} onClose={() => setGoalModal(null)} onSave={saveGoal} />}{toast && <div className="toast"><Check size={16} />{toast}</div>}</div>
 }
 
 createRoot(document.getElementById('root')).render(<App />)

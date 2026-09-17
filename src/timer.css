@@ -1,0 +1,6 @@
+.study-timer { position: fixed; right: 20px; bottom: 20px; z-index: 80; width: min(360px, calc(100vw - 40px)); max-height: 80vh; overflow: auto; padding: 20px; background: white; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 8px 32px #0002; }
+.study-timer output { display: block; font-size: 30px; font-variant-numeric: tabular-nums; margin: 12px 0; }
+.study-timer label { display: block; margin: 10px 0; }
+.study-timer input, .study-timer select, .study-timer textarea { display: block; width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+.study-timer button { padding: 8px 12px; margin: 8px 6px 0 0; border: 1px solid #ccc; border-radius: 8px; background: #f4f1ff; cursor: pointer; }
+.study-timer p { font-size: 13px; line-height: 1.6; }
