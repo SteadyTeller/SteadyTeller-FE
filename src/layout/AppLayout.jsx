@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { BarChart3, BookOpen, LayoutDashboard, LogOut, Menu, Sparkles, Target, X } from 'lucide-react'
+import { BookOpenCheck, ClipboardList, LayoutDashboard, LogOut, Menu, Sparkles, Target, UserRound, X } from 'lucide-react'
 
 export const APP_NAVIGATION = [
-  { label: '홈', icon: LayoutDashboard },
-  { label: '목표 관리', icon: BookOpen },
-  { label: '통계', icon: BarChart3 },
+  { label: '대시보드', icon: LayoutDashboard },
+  { label: '내 학습', icon: BookOpenCheck },
+  { label: '학습 관리', icon: Target },
+  { label: '기록', icon: ClipboardList },
+  { label: '내 정보 관리', icon: UserRound },
 ]
 
 export default function AppLayout({
