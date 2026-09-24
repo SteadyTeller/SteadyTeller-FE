@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ArrowRight, BarChart3, Bell, BookOpen, CalendarDays, Check, Clock3, LayoutDashboard, LogOut, Menu, MoreHorizontal, Play, Plus, RotateCcw, Sparkles, Target, Trash2, X } from 'lucide-react'
+import { ArrowRight, BarChart3, BookOpen, CalendarDays, Check, Clock3, Play, Plus, RotateCcw, Sparkles, Target, Trash2, X } from 'lucide-react'
 import { api, AUTH_EXPIRED_EVENT } from './api'
 import StudyTimer from './StudyTimer.jsx'
 import AvailabilityEditor from './AvailabilityEditor.jsx'
 import GoalDeadlineNotice from './GoalDeadlineNotice.jsx'
+import AppLayout from './layout/AppLayout.jsx'
 import { timerStorageKey, readTimer } from './timer.js'
 import { clampPercentage, formatMinutes, statisticsDateRange } from './statistics'
 import './styles.css'
@@ -18,6 +19,8 @@ import './goal-context.css'
 import './global-goal.css'
 import './goal-inline.css'
 import './statistics.css'
+import './styles/design-tokens.css'
+import './styles/common-layout.css'
 
 const dayLabels = { MON: '월', TUE: '화', WED: '수', THU: '목', FRI: '금', SAT: '토', SUN: '일', MONDAY: '월', TUESDAY: '화', WEDNESDAY: '수', THURSDAY: '목', FRIDAY: '금', SATURDAY: '토', SUNDAY: '일' }
 const emptyGoal = { title: '', startDate: new Date().toISOString().slice(0, 10), targetDate: '', currentLevel: 'BEGINNER', dailyStudyHours: 1, availableDays: [], focusArea: '' }
@@ -112,7 +115,7 @@ function App() {
   const [schedule, setSchedule] = useState(null)
   const [statistics, setStatistics] = useState({ summary: null, daily: [], goal: null })
   const [statisticsLoading, setStatisticsLoading] = useState(false)
-  const [activeNav, setActiveNav] = useState('대시보드')
+  const [activeNav, setActiveNav] = useState('홈')
   const [loading, setLoading] = useState(Boolean(token))
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
@@ -166,9 +169,8 @@ function App() {
   const revertItem = async itemId => { try { applyItemUpdate(await api.revertScheduleItemCompletion(schedule.scheduleId, itemId)); await loadStatistics(selectedGoal); showToast('완료 처리를 취소했어요.') } catch (err) { showToast(err.message) } }
   if (!token) return <AuthScreen onLogin={() => setToken(localStorage.getItem('steadyTeller.accessToken'))} />
   if (loading) return <div className="app-loading"><Sparkles size={24} /><strong>내 학습 정보를 불러오는 중이에요.</strong></div>
-  const nav = [[LayoutDashboard, '대시보드'], [Target, '학습 목표'], [BarChart3, '학습 통계']]
   const name = member?.nickname ? `${member.nickname}님` : '학습자님'
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark"><Sparkles size={17} fill="currentColor" /></span>Steady<span className="brand-accent">Teller</span></div><div className="profile-mini"><div className="avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div><div><strong>{member?.nickname ?? '회원'}</strong><span>{member?.email ?? ''}</span></div></div><nav><p className="nav-label">WORKSPACE</p>{nav.map(([Icon, label]) => <button className={activeNav === label ? 'nav-item active' : 'nav-item'} key={label} onClick={() => setActiveNav(label)}><Icon size={19} />{label}</button>)}<p className="nav-label nav-label-later">ACCOUNT</p><button className="nav-item" onClick={logout}><LogOut size={19} />로그아웃</button></nav></aside><main className="main-content"><header className="topbar"><button className="mobile-menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> {activeNav}</div><div className="global-goal-picker">{goals.length ? <><Target size={15} /><select value={selectedGoalId ?? ''} onChange={event => setSelectedGoalId(Number(event.target.value))}>{goals.map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></> : <span>선택한 목표 없음</span>}</div><div className="top-actions"><button className="icon-button"><Bell size={19} /></button><div className="top-avatar">{member?.nickname?.slice(0, 1) ?? '?'}</div></div></header><div className="content-wrap">{selectedGoal && <GoalDeadlineNotice key={selectedGoal.id} goalId={selectedGoal.id} refreshToken={schedule} />}{error && <div className="connection-error"><span>{error}</span><button onClick={refresh}>다시 시도</button></div>}{activeNav === '대시보드' && <Dashboard name={name} goal={selectedGoal} schedule={schedule} goalStatistics={statistics.goal} onCreateGoal={() => setGoalModal(emptyGoal)} onGoGoals={() => setActiveNav('학습 목표')} onGoSchedule={() => setActiveNav('학습 목표')} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '학습 목표' && <GoalsPage goals={goals} selectedGoal={selectedGoal} tasks={tasks} schedule={schedule} onSelect={setSelectedGoalId} onCreate={() => setGoalModal(emptyGoal)} onEdit={() => selectedGoal && setGoalModal(selectedGoal)} onDelete={removeGoal} onDeleteTask={deleteTask} onConfirmTasks={confirmTasks} onGenerateTasks={generateTasks} onGenerateSchedule={generateSchedule} onDeleteSchedule={deleteSchedule} isGeneratingTasks={isGeneratingTasks} isGeneratingSchedule={isGeneratingSchedule} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '학습 통계' && <StatisticsPage goal={selectedGoal} summary={statistics.summary} daily={statistics.daily} goalStatistics={statistics.goal} loading={statisticsLoading} />}</div></main>{member && <StudyTimer key={member.id} memberId={member.id} item={timerItem} onComplete={completeTimerItem} onFinished={finishTimer} />}{goalModal && <GoalModal initial={goalModal} onClose={() => setGoalModal(null)} onSave={saveGoal} />}{toast && <div className="toast"><Check size={16} />{toast}</div>}</div>
+  return <><AppLayout member={member} goals={goals} selectedGoalId={selectedGoalId} activeNav={activeNav} onNavigate={setActiveNav} onSelectGoal={setSelectedGoalId} onLogout={logout}>{selectedGoal && <GoalDeadlineNotice key={selectedGoal.id} goalId={selectedGoal.id} refreshToken={schedule} />}{error && <div className="connection-error"><span>{error}</span><button onClick={refresh}>다시 시도</button></div>}{activeNav === '홈' && <Dashboard name={name} goal={selectedGoal} schedule={schedule} goalStatistics={statistics.goal} onCreateGoal={() => setGoalModal(emptyGoal)} onGoGoals={() => setActiveNav('목표 관리')} onGoSchedule={() => setActiveNav('목표 관리')} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '목표 관리' && <GoalsPage goals={goals} selectedGoal={selectedGoal} tasks={tasks} schedule={schedule} onSelect={setSelectedGoalId} onCreate={() => setGoalModal(emptyGoal)} onEdit={() => selectedGoal && setGoalModal(selectedGoal)} onDelete={removeGoal} onDeleteTask={deleteTask} onConfirmTasks={confirmTasks} onGenerateTasks={generateTasks} onGenerateSchedule={generateSchedule} onDeleteSchedule={deleteSchedule} isGeneratingTasks={isGeneratingTasks} isGeneratingSchedule={isGeneratingSchedule} onStart={startItem} onComplete={completeItem} onRevert={revertItem} />}{activeNav === '통계' && <StatisticsPage goal={selectedGoal} summary={statistics.summary} daily={statistics.daily} goalStatistics={statistics.goal} loading={statisticsLoading} />}</AppLayout>{member && <StudyTimer key={member.id} memberId={member.id} item={timerItem} onComplete={completeTimerItem} onFinished={finishTimer} />}{goalModal && <GoalModal initial={goalModal} onClose={() => setGoalModal(null)} onSave={saveGoal} />}{toast && <div className="toast"><Check size={16} />{toast}</div>}</>
 }
 
 createRoot(document.getElementById('root')).render(<App />)
