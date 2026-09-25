@@ -1,0 +1,80 @@
+* { box-sizing: border-box; }
+
+html { min-width: 320px; }
+
+body { margin: 0; }
+
+button,
+input,
+select,
+textarea { font: inherit; }
+
+button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  font-weight: 800;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.page-shell {
+  min-height: 360px;
+  padding: 36px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.page-shell-kicker {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.page-shell h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: clamp(28px, 4vw, 42px);
+  letter-spacing: -.05em;
+}
+
+.access-notice {
+  display: grid;
+  justify-items: start;
+  min-height: 360px;
+  align-content: center;
+  padding: 36px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.access-notice-kicker {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.access-notice h1 { margin: 0; color: var(--color-text); font-size: clamp(24px, 3vw, 34px); letter-spacing: -.05em; }
+.access-notice > p:not(.access-notice-kicker) { margin: 11px 0 22px; color: var(--color-text-muted); font-size: 14px; }
+.access-notice button { display: flex; align-items: center; gap: 7px; padding: 11px 15px; border-radius: var(--radius-sm); color: white; background: var(--color-primary); font-size: 13px; font-weight: 800; }
+
+@media (max-width: 700px) {
+  .page-shell, .access-notice { min-height: 300px; padding: 24px; }
+}

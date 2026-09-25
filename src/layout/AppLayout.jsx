@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpenCheck, ClipboardList, LayoutDashboard, LogOut, Menu, Sparkles, Target, UserRound, X } from 'lucide-react'
+import { BookOpenCheck, ClipboardList, LayoutDashboard, LogIn, LogOut, Menu, Sparkles, Target, UserRound, X } from 'lucide-react'
 
 export const APP_NAVIGATION = [
   { label: '대시보드', icon: LayoutDashboard },
@@ -9,19 +9,8 @@ export const APP_NAVIGATION = [
   { label: '내 정보 관리', icon: UserRound },
 ]
 
-export default function AppLayout({
-  member,
-  goals,
-  selectedGoalId,
-  activeNav,
-  onNavigate,
-  onSelectGoal,
-  onLogout,
-  children,
-}) {
+export default function AppLayout({ activeNav, member, onNavigate, onOpenAuth, onLogout, children }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const nickname = member?.nickname ?? '회원'
-  const initial = nickname.slice(0, 1) || '?'
 
   function navigate(label) {
     onNavigate(label)
@@ -38,11 +27,14 @@ export default function AppLayout({
         <nav className={menuOpen ? 'primary-nav open' : 'primary-nav'} aria-label="주요 메뉴">
           <div className="mobile-nav-head"><strong>메뉴</strong><button type="button" aria-label="메뉴 닫기" onClick={() => setMenuOpen(false)}><X size={20} /></button></div>
           {APP_NAVIGATION.map(({ label, icon: Icon }) => <button type="button" className={activeNav === label ? 'primary-nav-item active' : 'primary-nav-item'} key={label} onClick={() => navigate(label)}><Icon size={18} />{label}</button>)}
-          <button type="button" className="primary-nav-item mobile-logout" onClick={onLogout}><LogOut size={18} />로그아웃</button>
+          {member && <button type="button" className="primary-nav-item mobile-logout" onClick={onLogout}><LogOut size={18} />로그아웃</button>}
+          {!member && <button type="button" className="primary-nav-item mobile-logout" onClick={() => { onOpenAuth(); setMenuOpen(false) }}><LogIn size={18} />로그인</button>}
         </nav>
         <div className="app-account">
-          <button type="button" className="header-logout" onClick={onLogout}><LogOut size={17} />로그아웃</button>
-          <div className="header-avatar" aria-label={`${nickname} 프로필`}>{initial}</div>
+          {member ? <>
+            <button type="button" className="header-logout" onClick={onLogout}><LogOut size={17} />로그아웃</button>
+            <div className="header-avatar" aria-label={`${member.nickname ?? '회원'} 프로필`}>{(member.nickname ?? '회').slice(0, 1)}</div>
+          </> : <button type="button" className="header-login" onClick={onOpenAuth}><LogIn size={16} />로그인</button>}
         </div>
       </div>
     </header>
@@ -50,7 +42,6 @@ export default function AppLayout({
     <main className="common-main">
       <header className="page-context">
         <div><span>Workspace</span><strong>{activeNav}</strong></div>
-        <label className="goal-context-select"><Target size={15} /><span className="sr-only">현재 학습 목표</span>{goals.length ? <select value={selectedGoalId ?? ''} onChange={event => onSelectGoal(Number(event.target.value))}>{goals.map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select> : <span>선택한 목표 없음</span>}</label>
       </header>
       <div className="common-content">{children}</div>
     </main>

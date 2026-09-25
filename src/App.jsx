@@ -1,0 +1,42 @@
+import { useState } from 'react'
+import { LogIn } from 'lucide-react'
+import AuthModal from './auth/components/AuthModal.jsx'
+import { useAuth } from './auth/hooks/useAuth.js'
+import AppLayout from './layout/AppLayout.jsx'
+
+function LoginRequired({ activeNav, isLoading, onOpenAuth }) {
+  return <section className="access-notice" aria-labelledby="access-notice-title">
+    <p className="access-notice-kicker">{activeNav}</p>
+    <h1 id="access-notice-title">로그인해야 이용할 수 있습니다.</h1>
+    <p>{isLoading ? '로그인 상태를 확인하고 있어요.' : '로그인하면 나의 학습 정보와 기능을 이용할 수 있어요.'}</p>
+    {!isLoading && <button type="button" onClick={onOpenAuth}><LogIn size={16} />로그인하기</button>}
+  </section>
+}
+
+function TabPlaceholder({ activeNav }) {
+  return <section className="page-shell" aria-labelledby="page-title">
+    <p className="page-shell-kicker">STEADY TELLER</p>
+    <h1 id="page-title">{activeNav}</h1>
+  </section>
+}
+
+export default function App() {
+  const [activeNav, setActiveNav] = useState('대시보드')
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const auth = useAuth()
+
+  return <>
+    <AppLayout
+      activeNav={activeNav}
+      member={auth.member}
+      onNavigate={setActiveNav}
+      onOpenAuth={() => setIsAuthModalOpen(true)}
+      onLogout={auth.logout}
+    >
+      {auth.isAuthenticated
+        ? <TabPlaceholder activeNav={activeNav} />
+        : <LoginRequired activeNav={activeNav} isLoading={auth.isLoading} onOpenAuth={() => setIsAuthModalOpen(true)} />}
+    </AppLayout>
+    {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onLogin={auth.login} onSignup={auth.signup} />}
+  </>
+}

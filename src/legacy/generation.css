@@ -1,0 +1,48 @@
+.generation-notice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: -10px 0 18px;
+    padding: 14px 16px;
+    background: #f2f0ff;
+    border: 1px solid #e3dfff;
+    border-radius: 12px;
+    color: #6758da
+}
+
+.generation-notice > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px
+}
+
+.generation-notice strong {
+    font-size: 12px
+}
+
+.generation-notice span:last-child {
+    font-size: 10px;
+    color: #8780b8
+}
+
+.button-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: task-spin .8s linear infinite;
+    flex: 0 0 auto
+}
+
+.primary-button:disabled, .outline-button:disabled {
+    opacity: .7;
+    cursor: wait
+}
+
+@keyframes task-spin {
+    to {
+        transform: rotate(360deg)
+    }
+}
