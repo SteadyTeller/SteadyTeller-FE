@@ -2,7 +2,20 @@ import { useState } from 'react'
 import { LogIn } from 'lucide-react'
 import AuthModal from './auth/components/AuthModal.jsx'
 import { useAuth } from './auth/hooks/useAuth.js'
+import DashboardPage from './dashboard/pages/DashboardPage.jsx'
 import AppLayout from './layout/AppLayout.jsx'
+import MyLearningPage from './learning/pages/MyLearningPage.jsx'
+import LearningManagementPage from './learning-management/pages/LearningManagementPage.jsx'
+import RecordsPage from './records/pages/RecordsPage.jsx'
+import MyInfoPage from './user/pages/MyInfoPage.jsx'
+
+const pages = {
+  대시보드: DashboardPage,
+  '내 학습': MyLearningPage,
+  '학습 관리': LearningManagementPage,
+  기록: RecordsPage,
+  '내 정보 관리': MyInfoPage,
+}
 
 function LoginRequired({ activeNav, isLoading, onOpenAuth }) {
   return <section className="access-notice" aria-labelledby="access-notice-title">
@@ -13,17 +26,11 @@ function LoginRequired({ activeNav, isLoading, onOpenAuth }) {
   </section>
 }
 
-function TabPlaceholder({ activeNav }) {
-  return <section className="page-shell" aria-labelledby="page-title">
-    <p className="page-shell-kicker">STEADY TELLER</p>
-    <h1 id="page-title">{activeNav}</h1>
-  </section>
-}
-
 export default function App() {
   const [activeNav, setActiveNav] = useState('대시보드')
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const auth = useAuth()
+  const CurrentPage = pages[activeNav]
 
   return <>
     <AppLayout
@@ -34,7 +41,7 @@ export default function App() {
       onLogout={auth.logout}
     >
       {auth.isAuthenticated
-        ? <TabPlaceholder activeNav={activeNav} />
+        ? <CurrentPage />
         : <LoginRequired activeNav={activeNav} isLoading={auth.isLoading} onOpenAuth={() => setIsAuthModalOpen(true)} />}
     </AppLayout>
     {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onLogin={auth.login} onSignup={auth.signup} />}
