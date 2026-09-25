@@ -9,8 +9,11 @@ export const learningManagementApi = {
   getGoals: () => authenticatedRequest('/api/v1/goals'),
   createGoal: payload => authenticatedRequest('/api/v1/goals', { method: 'POST', body: JSON.stringify(payload) }),
   updateGoal: (goalId, payload) => authenticatedRequest(`/api/v1/goals/${goalId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  generateTasks: goalId => authenticatedRequest(`/api/v1/goals/${goalId}/tasks/generate`, { method: 'POST' }),
   getConfirmedTasks: goalId => authenticatedRequest(`/api/v1/goals/${goalId}/tasks/confirmed`),
   getSchedules: goalId => authenticatedRequest(`/api/v1/goals/${goalId}/schedules`),
   getSchedule: scheduleId => authenticatedRequest(`/api/v1/schedules/${scheduleId}`),
+  getAvailabilities: goalId => authenticatedRequest(`/api/v1/members/me/availabilities?goalId=${encodeURIComponent(goalId)}`),
+  replaceAvailabilities: (goalId, payload) => authenticatedRequest(`/api/v1/members/me/availabilities?goalId=${encodeURIComponent(goalId)}`, { method: 'PUT', body: JSON.stringify(payload) }),
   createReplan: (goalId, payload) => authenticatedRequest(`/api/v1/goals/${goalId}/replan/availabilities`, { method: 'PUT', body: JSON.stringify(payload) }),
 }

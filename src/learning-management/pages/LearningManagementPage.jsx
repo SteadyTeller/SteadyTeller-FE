@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, RefreshCw } from 'lucide-react'
 import GoalManagementCard from '../components/GoalManagementCard.jsx'
 import GoalFormModal from '../components/GoalFormModal.jsx'
+import AvailabilityTimeline from '../components/AvailabilityTimeline.jsx'
 import MonthlyScheduleCalendar from '../components/MonthlyScheduleCalendar.jsx'
 import ReplanModal from '../components/ReplanModal.jsx'
 import TaskList from '../components/TaskList.jsx'
@@ -41,15 +42,19 @@ export default function LearningManagementPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [modal, setModal] = useState(null)
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false)
+  const [taskGenerationMessage, setTaskGenerationMessage] = useState('')
   const selectedGoal = goals.find(goal => goal.id === selectedGoalId) ?? null
 
   const loadGoalData = useCallback(async goalId => {
     if (!goalId) { setTasks([]); setSchedule(null); return }
-    const [confirmedTasks, schedules] = await Promise.all([
+    const [confirmedTasks, schedules, availabilities] = await Promise.all([
       learningManagementApi.getConfirmedTasks(goalId),
       learningManagementApi.getSchedules(goalId),
+      learningManagementApi.getAvailabilities(goalId),
     ])
     setTasks((confirmedTasks ?? []).map(toTaskView))
+    setGoals(current => current.map(goal => goal.id === goalId ? { ...goal, availabilities: availabilities ?? [] } : goal))
     const latestSchedule = schedules?.[0]
     setSchedule(latestSchedule ? await learningManagementApi.getSchedule(latestSchedule.scheduleId) : null)
   }, [])
@@ -86,9 +91,28 @@ export default function LearningManagementPage() {
     await refreshGoals(saved.id)
   }
 
+  async function saveAvailabilities(availabilities) {
+    await learningManagementApi.replaceAvailabilities(selectedGoal.id, { availabilities })
+    setGoals(current => current.map(goal => goal.id === selectedGoal.id ? { ...goal, availabilities } : goal))
+  }
+
   async function createReplan(payload) {
     await learningManagementApi.createReplan(selectedGoal.id, payload)
     setModal(null)
+  }
+
+  async function generateTasks() {
+    if (!selectedGoal || isGeneratingTasks) return
+    setIsGeneratingTasks(true)
+    setTaskGenerationMessage('')
+    try {
+      const candidates = await learningManagementApi.generateTasks(selectedGoal.id)
+      setTaskGenerationMessage(`AI 태스크 제안 ${candidates?.length ?? 0}개를 생성했습니다. 검토·확정 UI는 다음 단계에서 연결됩니다.`)
+    } catch (requestError) {
+      setTaskGenerationMessage(requestError.message)
+    } finally {
+      setIsGeneratingTasks(false)
+    }
   }
 
   return <div className="learning-management-page">
@@ -98,7 +122,8 @@ export default function LearningManagementPage() {
     {!isLoading && !error && !selectedGoal && <section className="learning-management-state"><p>등록된 학습 목표가 없습니다.</p><button type="button" className="primary-action" onClick={() => setModal('create')}><Plus size={15} />새 목표 만들기</button></section>}
     {!isLoading && !error && selectedGoal && <>
       <GoalManagementCard goal={selectedGoal} goals={goals} onSelectGoal={selectGoal} onEdit={() => setModal('edit')} onReplan={() => setModal('replan')} onCreate={() => setModal('create')} />
-      <div className="learning-management-workspace"><TaskList tasks={tasks} /><MonthlyScheduleCalendar tasks={tasks} schedule={schedule} currentMonth={currentMonth} onMonthChange={setCurrentMonth} /></div>
+      <AvailabilityTimeline goalId={selectedGoal.id} availabilities={selectedGoal.availabilities ?? []} onSave={saveAvailabilities} />
+      <div className="learning-management-workspace"><TaskList tasks={tasks} onGenerateTasks={generateTasks} isGenerating={isGeneratingTasks} generationMessage={taskGenerationMessage} /><MonthlyScheduleCalendar tasks={tasks} schedule={schedule} currentMonth={currentMonth} onMonthChange={setCurrentMonth} /></div>
     </>}
     {modal === 'create' && <GoalFormModal mode="create" onClose={() => setModal(null)} onSave={saveGoal} />}
     {modal === 'edit' && selectedGoal && <GoalFormModal mode="edit" goal={selectedGoal} onClose={() => setModal(null)} onSave={saveGoal} />}

@@ -44,7 +44,7 @@ export default function GoalFormModal({mode, goal, onClose, onSave}) {
                 startDate: form.startDate,
                 targetDate: form.targetDate,
                 currentLevel: form.currentLevel,
-                mustStudyTopics: topics
+            mustStudyTopics: topics
             })
         } catch (requestError) {
             setError(requestError.message)
