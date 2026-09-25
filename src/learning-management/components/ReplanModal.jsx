@@ -1,0 +1,16 @@
+import { useState } from 'react'
+import { CalendarClock, Plus, Trash2, X } from 'lucide-react'
+
+const dayOptions = [['MONDAY', '월'], ['TUESDAY', '화'], ['WEDNESDAY', '수'], ['THURSDAY', '목'], ['FRIDAY', '금'], ['SATURDAY', '토'], ['SUNDAY', '일']]
+const defaultAvailability = { dayOfWeek: 'MONDAY', startTime: '19:00', endTime: '21:00', enabled: true }
+
+export default function ReplanModal({ goal, onClose, onSave }) {
+  const [availabilities, setAvailabilities] = useState([defaultAvailability])
+  const [error, setError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const update = (index, key, value) => setAvailabilities(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item))
+  const remove = index => setAvailabilities(current => current.filter((_, itemIndex) => itemIndex !== index))
+  async function submit(event) { event.preventDefault(); setError(''); setIsSaving(true); try { await onSave({ availabilities }) } catch (requestError) { setError(requestError.message) } finally { setIsSaving(false) } }
+
+  return <div className="management-modal-backdrop" role="presentation" onMouseDown={onClose}><section className="management-modal replan-modal" role="dialog" aria-modal="true" aria-labelledby="replan-form-title" onMouseDown={event => event.stopPropagation()}><button type="button" className="management-modal-close" aria-label="창 닫기" onClick={onClose}><X size={18} /></button><div className="management-modal-icon"><CalendarClock size={21} /></div><p className="section-label">REPLAN</p><h2 id="replan-form-title">{goal.title} 재계획</h2><p className="management-modal-description">변경된 학습 가능 시간을 입력하면 재계획안을 만들 수 있어요.</p><form onSubmit={submit}><div className="availability-editor"><div className="availability-editor-heading"><strong>학습 가능 시간</strong><button type="button" onClick={() => setAvailabilities(current => [...current, { ...defaultAvailability }])}><Plus size={14} />시간 추가</button></div>{availabilities.map((availability, index) => <div className="availability-input-row" key={index}><select aria-label="요일" value={availability.dayOfWeek} onChange={event => update(index, 'dayOfWeek', event.target.value)}>{dayOptions.map(([value, label]) => <option value={value} key={value}>{label}요일</option>)}</select><input aria-label="시작 시간" type="time" value={availability.startTime} onChange={event => update(index, 'startTime', event.target.value)} /><span>~</span><input aria-label="종료 시간" type="time" value={availability.endTime} onChange={event => update(index, 'endTime', event.target.value)} /><label className="availability-enabled"><input type="checkbox" checked={availability.enabled} onChange={event => update(index, 'enabled', event.target.checked)} />사용</label>{availabilities.length > 1 && <button type="button" className="remove-availability" aria-label="시간 삭제" onClick={() => remove(index)}><Trash2 size={15} /></button>}</div>)}</div><p className="replan-api-note">입력값은 재계획 API의 <code>availabilities</code> 요청 본문과 동일한 구조입니다.</p>{error && <p className="management-modal-error">{error}</p>}<div className="management-modal-actions"><button type="button" onClick={onClose} disabled={isSaving}>취소</button><button type="submit" disabled={isSaving}>{isSaving ? '생성 중...' : '재계획안 만들기'}</button></div></form></section></div>
+}

@@ -1,37 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Plus, RefreshCw } from 'lucide-react'
 import GoalManagementCard from '../components/GoalManagementCard.jsx'
+import GoalFormModal from '../components/GoalFormModal.jsx'
 import MonthlyScheduleCalendar from '../components/MonthlyScheduleCalendar.jsx'
+import ReplanModal from '../components/ReplanModal.jsx'
 import TaskList from '../components/TaskList.jsx'
+import { learningManagementApi } from '../api/learningManagementApi.js'
 import '../learning-management.css'
 
-function dateKey({ year, month }, day) {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+function toGoalView(goal) {
+  return {
+    ...goal,
+    description: goal.mustStudyTopics?.length ? `${goal.mustStudyTopics.join(' · ')}을 중심으로 학습합니다.` : '학습 목표를 설정하세요.',
+    mustStudyTopics: goal.mustStudyTopics ?? [],
+  }
 }
 
-function formatDate(date) {
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
-}
-
-function createDraftGoals(initialMonth) {
-  const startDate = new Date(initialMonth.year, initialMonth.month, 1)
-  const nextMonthEnd = new Date(initialMonth.year, initialMonth.month + 2, 0)
-  const laterMonthEnd = new Date(initialMonth.year, initialMonth.month + 3, 0)
-
-  return [
-    { id: 'goal-engineer', title: '정보처리기사 합격하기', description: '데이터베이스와 알고리즘을 중심으로 자격증 시험을 준비합니다.', startDate: formatDate(startDate), targetDate: formatDate(nextMonthEnd), studyFrequency: '주 4회 · 회당 1시간' },
-    { id: 'goal-sql', title: 'SQL 실력 다지기', description: '실무 SQL 문법과 문제 해결 능력을 체계적으로 높입니다.', startDate: formatDate(startDate), targetDate: formatDate(laterMonthEnd), studyFrequency: '주 3회 · 회당 50분' },
-    { id: 'goal-english', title: '비즈니스 영어 회화', description: '회의와 이메일에 필요한 영어 표현을 꾸준히 학습합니다.', startDate: formatDate(startDate), targetDate: formatDate(laterMonthEnd), studyFrequency: '주 5회 · 회당 30분' },
-  ]
-}
-
-function createDraftTasks(initialMonth) {
-  return [
-    { id: 'task-1', title: '데이터베이스 정규화 개념 정리', subject: '데이터베이스', allocatedMinutes: 45, status: 'COMPLETED', schedules: [{ date: dateKey(initialMonth, 3), time: '19:00' }] },
-    { id: 'task-2', title: 'SQL 기출문제 풀이', subject: '문제 풀이', allocatedMinutes: 60, status: 'CONFIRMED', schedules: [{ date: dateKey(initialMonth, 8), time: '20:00' }, { date: dateKey(initialMonth, 15), time: '19:30' }] },
-    { id: 'task-3', title: '운영체제 프로세스 복습', subject: '운영체제', allocatedMinutes: 40, status: 'CONFIRMED', schedules: [{ date: dateKey(initialMonth, 12), time: '19:00' }] },
-    { id: 'task-4', title: '데이터베이스 모의고사', subject: '실전 점검', allocatedMinutes: 90, status: 'CONFIRMED', schedules: [{ date: dateKey(initialMonth, 22), time: '10:00' }] },
-    { id: 'task-5', title: '알고리즘 핵심 개념 복습', subject: '알고리즘', allocatedMinutes: 50, status: 'DRAFT', schedules: [] },
-  ]
+function toTaskView(task) {
+  return {
+    ...task,
+    subject: task.subject || task.category || '학습 태스크',
+    status: task.status === 'FINISHED' ? 'COMPLETED' : task.status,
+    schedules: (task.scheduleItems ?? []).map(item => ({
+      date: item.date,
+      time: item.startTime?.slice(0, 5) ?? '시간 미정',
+    })),
+  }
 }
 
 export default function LearningManagementPage() {
@@ -40,25 +34,74 @@ export default function LearningManagementPage() {
     return { year: today.getFullYear(), month: today.getMonth() }
   }, [])
   const [currentMonth, setCurrentMonth] = useState(initialMonth)
-  const draftTasks = useMemo(() => createDraftTasks(initialMonth), [initialMonth])
-  const draftGoals = useMemo(() => createDraftGoals(initialMonth), [initialMonth])
-  const [selectedGoalId, setSelectedGoalId] = useState(draftGoals[0].id)
-  const selectedGoal = draftGoals.find(goal => goal.id === selectedGoalId) ?? draftGoals[0]
+  const [goals, setGoals] = useState([])
+  const [selectedGoalId, setSelectedGoalId] = useState(null)
+  const [tasks, setTasks] = useState([])
+  const [schedule, setSchedule] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [modal, setModal] = useState(null)
+  const selectedGoal = goals.find(goal => goal.id === selectedGoalId) ?? null
+
+  const loadGoalData = useCallback(async goalId => {
+    if (!goalId) { setTasks([]); setSchedule(null); return }
+    const [confirmedTasks, schedules] = await Promise.all([
+      learningManagementApi.getConfirmedTasks(goalId),
+      learningManagementApi.getSchedules(goalId),
+    ])
+    setTasks((confirmedTasks ?? []).map(toTaskView))
+    const latestSchedule = schedules?.[0]
+    setSchedule(latestSchedule ? await learningManagementApi.getSchedule(latestSchedule.scheduleId) : null)
+  }, [])
+
+  const refreshGoals = useCallback(async preferredGoalId => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const loadedGoals = (await learningManagementApi.getGoals()).map(toGoalView)
+      setGoals(loadedGoals)
+      const nextGoal = loadedGoals.find(goal => goal.id === preferredGoalId) ?? loadedGoals[0] ?? null
+      setSelectedGoalId(nextGoal?.id ?? null)
+      await loadGoalData(nextGoal?.id)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [loadGoalData])
+
+  useEffect(() => { refreshGoals() }, [refreshGoals])
+
+  async function selectGoal(goalId) {
+    setSelectedGoalId(goalId)
+    setError('')
+    try { await loadGoalData(goalId) } catch (requestError) { setError(requestError.message) }
+  }
+
+  async function saveGoal(form) {
+    const saved = modal === 'edit'
+      ? await learningManagementApi.updateGoal(selectedGoal.id, form)
+      : await learningManagementApi.createGoal(form)
+    setModal(null)
+    await refreshGoals(saved.id)
+  }
+
+  async function createReplan(payload) {
+    await learningManagementApi.createReplan(selectedGoal.id, payload)
+    setModal(null)
+  }
 
   return <div className="learning-management-page">
-    <header className="learning-management-header">
-      <div>
-        <p className="learning-management-kicker">LEARNING MANAGEMENT</p>
-        <h1>학습 관리</h1>
-        <p>목표, 태스크, 일정을 한 화면에서 관리하세요.</p>
-      </div>
-      <span className="draft-badge">초안 · API 연결 전</span>
-    </header>
-
-    <GoalManagementCard goal={selectedGoal} goals={draftGoals} onSelectGoal={setSelectedGoalId} />
-    <div className="learning-management-workspace">
-      <TaskList tasks={draftTasks} />
-      <MonthlyScheduleCalendar tasks={draftTasks} currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
-    </div>
+    <header className="learning-management-header"><div><p className="learning-management-kicker">LEARNING MANAGEMENT</p><h1>학습 관리</h1><p>목표, 태스크, 일정을 한 화면에서 관리하세요.</p></div><button type="button" className="draft-badge refresh-button" onClick={() => refreshGoals(selectedGoalId)}><RefreshCw size={13} />새로고침</button></header>
+    {isLoading && <section className="learning-management-state">학습 관리 정보를 불러오는 중입니다.</section>}
+    {!isLoading && error && <section className="learning-management-state error"><p>{error}</p><button type="button" onClick={() => refreshGoals(selectedGoalId)}>다시 시도</button></section>}
+    {!isLoading && !error && !selectedGoal && <section className="learning-management-state"><p>등록된 학습 목표가 없습니다.</p><button type="button" className="primary-action" onClick={() => setModal('create')}><Plus size={15} />새 목표 만들기</button></section>}
+    {!isLoading && !error && selectedGoal && <>
+      <GoalManagementCard goal={selectedGoal} goals={goals} onSelectGoal={selectGoal} onEdit={() => setModal('edit')} onReplan={() => setModal('replan')} onCreate={() => setModal('create')} />
+      <div className="learning-management-workspace"><TaskList tasks={tasks} /><MonthlyScheduleCalendar tasks={tasks} schedule={schedule} currentMonth={currentMonth} onMonthChange={setCurrentMonth} /></div>
+    </>}
+    {modal === 'create' && <GoalFormModal mode="create" onClose={() => setModal(null)} onSave={saveGoal} />}
+    {modal === 'edit' && selectedGoal && <GoalFormModal mode="edit" goal={selectedGoal} onClose={() => setModal(null)} onSave={saveGoal} />}
+    {modal === 'replan' && selectedGoal && <ReplanModal goal={selectedGoal} onClose={() => setModal(null)} onSave={createReplan} />}
   </div>
 }
