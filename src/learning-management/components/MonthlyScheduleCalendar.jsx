@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react'
 
 const weekdays = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -12,12 +12,30 @@ function monthLabel(year, month) {
 }
 
 function schedulesForDate(tasks, date) {
-  return tasks.flatMap(task => task.schedules.map(schedule => ({ ...schedule, taskTitle: task.title, allocatedMinutes: task.allocatedMinutes }))).filter(schedule => schedule.date === date)
+  return tasks.flatMap(task => task.schedules.map(schedule => ({
+    ...schedule,
+    taskTitle: task.title,
+    allocatedMinutes: task.allocatedMinutes,
+    isCompleted: task.status === 'COMPLETED',
+  }))).filter(schedule => schedule.date === date)
+}
+
+function ScheduleDetailModal({ date, events, onClose }) {
+  return <div className="management-modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <section className="management-modal schedule-detail-modal" role="dialog" aria-modal="true" aria-labelledby="schedule-detail-title" onMouseDown={event => event.stopPropagation()}>
+      <button type="button" className="management-modal-close" aria-label="닫기" onClick={onClose}><X size={18} /></button>
+      <p className="section-label">DAILY SCHEDULE</p>
+      <h2 id="schedule-detail-title">{date.year}년 {date.month + 1}월 {date.day}일</h2>
+      <p className="management-modal-description">학습 태스크 {events.length}건</p>
+      {events.length ? <div className="schedule-detail-list">{events.map((event, index) => <article className={event.isCompleted ? 'completed' : ''} key={`${event.taskTitle}-${event.startTime}-${index}`}><div><strong>{event.taskTitle}</strong><span><Clock3 size={13} />{event.endTime ? `${event.startTime} ~ ${event.endTime}` : event.startTime}</span></div><small>{event.allocatedMinutes}분</small></article>)}</div> : <p className="schedule-detail-empty">등록된 학습 태스크가 없습니다.</p>}
+    </section>
+  </div>
 }
 
 export default function MonthlyScheduleCalendar({ tasks, currentMonth, onMonthChange }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
+  const [detail, setDetail] = useState(null)
   const [pickerDate, setPickerDate] = useState({ ...currentMonth, day: 1 })
   const { year, month } = currentMonth
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -52,8 +70,9 @@ export default function MonthlyScheduleCalendar({ tasks, currentMonth, onMonthCh
     setIsPickerOpen(false)
   }
 
-  function selectDay(day) {
+  function openScheduleDetail(day, events) {
     setSelectedDate({ year, month, day })
+    setDetail({ date: { year, month, day }, events })
   }
 
   return <section className="schedule-management-section" aria-labelledby="schedule-calendar-title">
@@ -77,11 +96,12 @@ export default function MonthlyScheduleCalendar({ tasks, currentMonth, onMonthCh
         const date = toDateKey(year, month, day)
         const events = schedulesForDate(tasks, date)
         const isSelected = selectedDate?.year === year && selectedDate?.month === month && selectedDate?.day === day
-        return <button type="button" className={isSelected ? 'calendar-day selected' : 'calendar-day'} key={date} onClick={() => selectDay(day)} aria-label={`${month + 1}월 ${day}일${events.length ? `, 학습 일정 ${events.length}개` : ''}`}>
-          <strong>{day}</strong><div className="calendar-events">{events.map(event => <span key={`${event.taskTitle}-${event.time}`} className="calendar-event"><span><Clock3 size={10} />{event.time}</span><b>{event.taskTitle}</b><small>{event.allocatedMinutes}분</small></span>)}</div>
+        return <button type="button" className={isSelected ? 'calendar-day selected' : 'calendar-day'} key={date} onClick={() => openScheduleDetail(day, events)} aria-label={`${month + 1}월 ${day}일, 학습 태스크 ${events.length}건`}>
+          <div className="calendar-day-head"><strong>{day}</strong>{events.length > 0 && <span>{events.length}건</span>}</div>
+          <div className="calendar-task-names">{events.slice(0, 2).map((event, eventIndex) => <b className={event.isCompleted ? 'completed' : ''} key={`${event.taskTitle}-${eventIndex}`}>{event.taskTitle}</b>)}{events.length > 2 && <small>외 {events.length - 2}건</small>}</div>
         </button>
       })())}
     </div>
-    {selectedDate && <p className="selected-date-notice"><CalendarDays size={13} />{selectedDate.year}년 {selectedDate.month + 1}월 {selectedDate.day}일을 선택했어요.</p>}
+    {detail && <ScheduleDetailModal date={detail.date} events={detail.events} onClose={() => setDetail(null)} />}
   </section>
 }
