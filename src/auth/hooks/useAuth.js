@@ -43,5 +43,5 @@ export function useAuth() {
 
   const signup = useCallback(({ email, password, nickname }) => authApi.signup(email, password, nickname), [])
 
-  return { member, isAuthenticated: Boolean(member), isLoading, login, logout, signup }
+  return { member, isAuthenticated: Boolean(member), isLoading, login, logout, signup, refreshMember: loadMember }
 }

@@ -41,7 +41,7 @@ export default function App() {
       onLogout={auth.logout}
     >
       {auth.isAuthenticated
-        ? <CurrentPage />
+        ? <CurrentPage member={auth.member} onNavigate={setActiveNav} onMemberUpdated={auth.refreshMember} />
         : <LoginRequired activeNav={activeNav} isLoading={auth.isLoading} onOpenAuth={() => setIsAuthModalOpen(true)} />}
     </AppLayout>
     {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} onLogin={auth.login} onSignup={auth.signup} />}
