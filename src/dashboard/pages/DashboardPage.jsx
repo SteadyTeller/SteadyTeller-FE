@@ -1,10 +1,11 @@
 import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Flame, RefreshCw, Target } from 'lucide-react'
+import { dashboardApi } from '../api/dashboardApi.js'
 import { useLearningData } from '../../shared/hooks/useLearningData.js'
 import { dateLabel, formatMinutes, formatScheduleTime, partitionLearningItems, progressOf } from '../../shared/utils/learningData.js'
 import './DashboardPage.css'
 
 export default function DashboardPage({ member, onNavigate }) {
-  const { goals, items, loading, error, refresh } = useLearningData()
+  const { goals, items, loading, error, refresh } = useLearningData(dashboardApi)
   const groups = partitionLearningItems(items)
   const focusItems = [...groups.overdue, ...groups.today].slice(0, 4)
   const activeGoals = goals.filter(goal => !['COMPLETED', 'DELETED'].includes(goal.status))

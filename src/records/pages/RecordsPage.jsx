@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BarChart3, CalendarRange, CheckCircle2, Clock3, Flame, RefreshCw, Target } from 'lucide-react'
-import { learningApi } from '../../shared/api/learningApi.js'
-import { statisticsApi } from '../../shared/api/statisticsApi.js'
+import { recordsApi } from '../api/recordsApi.js'
 import { formatMinutes, localDateKey } from '../../shared/utils/learningData.js'
 import './RecordsPage.css'
 
@@ -17,11 +16,11 @@ export default function RecordsPage() {
     setLoading(true)
     setError('')
     try {
-      const goals = await learningApi.getGoals()
+      const goals = await recordsApi.getGoals()
       const [summary, daily, goalResults] = await Promise.all([
-        statisticsApi.getSummary(appliedRange.startDate, appliedRange.endDate),
-        statisticsApi.getDaily(appliedRange.startDate, appliedRange.endDate),
-        Promise.allSettled(goals.map(goal => statisticsApi.getGoal(goal.id))),
+        recordsApi.getSummary(appliedRange.startDate, appliedRange.endDate),
+        recordsApi.getDaily(appliedRange.startDate, appliedRange.endDate),
+        Promise.allSettled(goals.map(goal => recordsApi.getGoal(goal.id))),
       ])
       setData({ summary, daily, goals, goalStats: goalResults.map((result, index) => result.status === 'fulfilled' ? { ...result.value, title: goals[index].title, targetDate: goals[index].targetDate } : null).filter(Boolean) })
     } catch (requestError) {

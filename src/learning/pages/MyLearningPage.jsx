@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { AlertCircle, BookOpen, CalendarDays, CheckCircle2, ChevronRight, Clock3, Filter, Play, RefreshCw } from 'lucide-react'
 import LearningTimer from '../components/LearningTimer.jsx'
+import { learningApi } from '../api/learningApi.js'
 import { readTimer, timerStorageKey } from '../../legacy/timer.js'
-import { learningApi } from '../../shared/api/learningApi.js'
 import { useLearningData } from '../../shared/hooks/useLearningData.js'
 import { dateLabel, formatScheduleTime, localDateKey, partitionLearningItems } from '../../shared/utils/learningData.js'
 import './MyLearningPage.css'
@@ -15,7 +15,7 @@ const FILTERS = [
 ]
 
 export default function MyLearningPage({ member }) {
-  const { goals, items, loading, error, refresh } = useLearningData()
+  const { goals, items, loading, error, refresh } = useLearningData(learningApi)
   const [filter, setFilter] = useState('today')
   const [goalId, setGoalId] = useState('all')
   const [timerItem, setTimerItem] = useState(null)

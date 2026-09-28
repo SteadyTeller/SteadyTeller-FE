@@ -1,5 +1,5 @@
 import { getAccessToken } from '../../auth/authStorage.js'
-import { ApiError, request } from './httpClient.js'
+import { ApiError, request } from '../../shared/api/httpClient.js'
 
 function authenticatedRequest(path, options = {}) {
   return request(path, { ...options, token: getAccessToken() })

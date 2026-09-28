@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Clock3, Pause, Play, Square, X } from 'lucide-react'
 import { elapsedSeconds, formatElapsed, pauseTimer, readTimer, resumeTimer, timerStorageKey, validateResult, upsertDraft } from '../../legacy/timer.js'
-import { isTimerResultApiUnavailable, learningApi } from '../../shared/api/learningApi.js'
+import { isTimerResultApiUnavailable, learningApi } from '../api/learningApi.js'
 import './LearningTimer.css'
 
 const FAILURE_REASONS = [
